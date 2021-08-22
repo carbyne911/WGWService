@@ -18,9 +18,9 @@ pipeline {
             yamlFile 'ci/pod.yaml'
         }
     }
-//    triggers {
-//        pollSCM('H/3 * * * *') // every 3 mins
-//    }
+    triggers {
+        pollSCM('H/3 * * * *') // every 3 mins
+    }
     parameters {
         gitParameter branchFilter: 'origin/(.*)', defaultValue: 'feature/REP-48994', name: 'GIT_BRANCH', type: 'PT_BRANCH'
         string(name: 'Stack', defaultValue: 'dev', description: 'Name of the Stack')
