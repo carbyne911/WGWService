@@ -17,6 +17,11 @@ pipeline {
             yamlFile 'ci/pod.yaml'
         }
     }
+	parameters {
+        string(name: 'GIT_BRANCH', defaultValue: 'feature/REP-48994', description: 'Name of the SCM branch')
+        string(name: 'Stack', defaultValue: 'dev', description: 'Name of the Stack')
+
+    }
     environment {
         AWS_DEFAULT_REGION = 'eu-central-1'
         SERVICE_NAME = 'WGWService'
