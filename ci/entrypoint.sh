@@ -36,7 +36,7 @@ function download_configurations_from_s3() {
         aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/deployment$DEPLOYMENT_CONF_VERSION.conf /home/ubuntu
         aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/wgw_carbyneapi_com_cert.pem /home/ubuntu
         aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/wgw_carbyneapi_com_key.pem /home/ubuntu
-    elif [[ "$JANUS_ENV" == "stage" || "$JANUS_ENV" == "qa" || "$JANUS_ENV" == "dev" ]]; then
+    elif [[ "$JANUS_ENV" == "stage" || "$JANUS_ENV" == "qa" || "$JANUS_ENV" == "dev" || "$JANUS_ENV" == "feature" ]]; then
         if [[ "$JANUS_ENV" == "feature" ]]; then
             JANUS_ENV="dev"
         fi
@@ -54,7 +54,7 @@ function download_configurations_from_s3() {
 
 function install_certifications() {
     mkdir $JANUS_CERT_PATH
-    if [[ "$JANUS_ENV" == "stage" || "$JANUS_ENV" == "qa" || "$JANUS_ENV" == "dev" ]]; then
+    if [[ "$JANUS_ENV" == "stage" || "$JANUS_ENV" == "qa" || "$JANUS_ENV" == "dev" || "$JANUS_ENV" == "feature" ]]; then
         cp /home/ubuntu/wgw_carbyneapi-dev_com_cert.pem $CERT_PATH
         cp /home/ubuntu/wgw_carbyneapi-dev_com_key.pem $KEY_PATH
     elif [[ "$JANUS_ENV" == "prod" || "$JANUS_ENV" == "gov" ]]; then
