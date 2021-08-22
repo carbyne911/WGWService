@@ -12,6 +12,7 @@ declare -A WGW_images=(\
 ["WGWServiceProduction"]= \
 ["WGWServiceProductionGov"]=_gov \
 )
+DEPLOYMENT_VERSION="$(cat ./wgw_version)"
 
 
 if [["${DEPLOYMENT_VERSION}" != ""]];then

@@ -231,7 +231,6 @@ RUN cd /home/ubuntu/ \
 
 # clone wgw code
 RUN cd /home/ubuntu/  \  
-   && cat /usr/include/gstreamer-1.0/gst/gst.h \ 
    && git clone -b "${WGW_SERVICE_GIT_BRANCH}" --single-branch https://github.com/reporty/WGWService.git \
    && cd "$JANUS_DIR" \   
    && sh autogen.sh \   
