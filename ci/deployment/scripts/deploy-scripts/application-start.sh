@@ -67,3 +67,14 @@ $aws_creds_volume \
 -e EC2_ID=$EC2_INSTANCE_ID \
 -e JANUS_ENV=$ENV_VALUE \
 $DOCKER_REPO$IMAGE_NAME${WGW_images[$DEPLOYMENT_GROUP_NAME]}:$IMAGE_TAG bash
+
+echo "docker run -dit --rm --net=host \
+$aws_creds_volume \
+--name WGWService \
+-v ${WGW_LOG_FILE_PATH}:${WGW_LOG_FILE_PATH} \
+-e SGW_URL=${SGW_APPLICATION_URL} \
+-e WGW_URL=${WGW_URL} \
+-e DEPLOYMENT_CONF_VERSION=${CONF_VERSION} \
+-e EC2_ID=${EC2_INSTANCE_ID} \
+-e JANUS_ENV=${ENV_VALUE} \
+${DOCKER_REPO}${IMAGE_NAME}${WGW_images[$DEPLOYMENT_GROUP_NAME]}:${IMAGE_TAG} bash"
