@@ -6,7 +6,7 @@ WGW_SYSLOG_DIRECTORY=$WORKING_DIR/SIPREC-Logs
 REGION=eu-west-1
 DOCKER_REPO=366789379256.dkr.ecr.eu-west-1.amazonaws.com/
 IMAGE_NAME=wgw_service
-IMAGE_TAG=latest
+IMAGE_TAG="$(cat ./wgw_version)"
 declare -A WGW_images=(\
 ["WGWServiceFeature"]=_feature \
 ["WGWServiceDevelopment"]=_dev \
@@ -16,7 +16,6 @@ declare -A WGW_images=(\
 ["WGWServiceProductionGov"]=_gov \
 )
 
-DEPLOYMENT_VERSION="$(cat ./wgw_version)"
 ENV_VALUE=$(echo ${WGW_images[$DEPLOYMENT_GROUP_NAME]} | sed 's/_//')
 
 
@@ -25,8 +24,8 @@ case "$DEPLOYMENT_GROUP_NAME" in
  *) aws_creds_volume="" ;;
 esac
 
-if [[ "${DEPLOYMENT_VERSION}" != "" ]]; then
-    IMAGE_TAG=$DEPLOYMENT_VERSION
+if [[ "${IMAGE_TAG}" != "" ]]; then
+    IMAGE_TAG=latest
 fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" ]]; then
