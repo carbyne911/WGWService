@@ -25,7 +25,7 @@ case "$DEPLOYMENT_GROUP_NAME" in
  *) aws_creds_volume="" ;;
 esac
 
-if [[ "${DEPLOYMENT_VERSION}" != "" ]];then
+if [[ "${DEPLOYMENT_VERSION}" != "" ]]; then
     IMAGE_TAG=$DEPLOYMENT_VERSION
 fi
 

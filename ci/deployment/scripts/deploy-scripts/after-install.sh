@@ -15,8 +15,8 @@ declare -A WGW_images=(\
 DEPLOYMENT_VERSION="$(cat ./wgw_version)"
 
 
-if [["${DEPLOYMENT_VERSION}" != ""]];then
-    IMAGE_TAG = $DEPLOYMENT_VERSION
+if [[ "${DEPLOYMENT_VERSION}" != "" ]]; then
+    IMAGE_TAG=$DEPLOYMENT_VERSION
 fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" ]]; then
