@@ -3,7 +3,7 @@
 REGION=eu-west-1
 DOCKER_REPO=366789379256.dkr.ecr.eu-west-1.amazonaws.com/
 IMAGE_NAME=wgw_service
-IMAGE_TAG="$(. $(dirname $0)/wgw_version)"
+IMAGE_TAG="$(cat $(dirname $0)/wgw_version)"
 declare -A WGW_images=(\
 ["WGWServiceFeature"]=_feature \
 ["WGWServiceDevelopment"]=_dev \
