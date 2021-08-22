@@ -14,7 +14,7 @@ declare -A WGW_images=(\
 )
 
 
-if [[ "${IMAGE_TAG}" != "" ]]; then
+if [[ "${IMAGE_TAG}" == "" ]]; then
     IMAGE_TAG=latest
 fi
 
@@ -44,4 +44,3 @@ check_group
 
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $DOCKER_REPO
 docker pull $DOCKER_REPO$IMAGE_NAME${WGW_images[$DEPLOYMENT_GROUP_NAME]}:$IMAGE_TAG
-echo "docker pull ${DOCKER_REPO}${IMAGE_NAME}${WGW_images[$DEPLOYMENT_GROUP_NAME]}:${IMAGE_TAG}"
