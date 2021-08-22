@@ -2,14 +2,13 @@
 def appVersion = ''
 gitCredentialsId = 'e4729b13-caae-4669-972f-5307ae6309f4'
 awsCredentialsId = 'dab6216e-af1e-45e8-b957-58796cc47fa2'
-appGitUrl = 'https://ci_reporty@bitbucket.org/reportydev/wgwservice.git'
+appGitUrl = 'https://github.com/carbyne911/WGWService.git'
 imageName = 'wgw_service'
 
 pipeline {
     options {
         timestamps()
         disableConcurrentBuilds()
-	skipDefaultCheckout()	
         timeout(time: 3, unit: 'HOURS')
     }
     agent {
