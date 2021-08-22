@@ -6014,8 +6014,8 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 				"udpsrc address=127.0.0.1 port=0 name=%s "
 				" caps=\"application/x-rtp,media=video,encoding-name=VP8\" !"
 				" rtpjitterbuffer ! rtpvp8depay name=rtpvp8depayVideo ! vp8dec ! queue max-size-time=10000000 ! videoconvert ! x264enc ! "
-				" rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_UDP location=\"%s\" latency=0",
-                 		UDPSRC_1_ELEMENT_NAME, rtsp_full_url),
+				" mp4mux ! filesink location=recording_%s.mp4",
+                 		UDPSRC_1_ELEMENT_NAME, rtsp_full_url, room->room_id_str),
 				"launch_string", 0, MAX_STRING_LEN);
         		} else if(vcodec == JANUS_VIDEOCODEC_H264) {
                 		JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_H264 --------------%s\n",log_string);
