@@ -32,7 +32,6 @@ pipeline {
         stage('Parsing WGW Build Version') {
             steps {
                 script {
-		    checkout([$class: 'GitSCM', branches: [[name: '*/$GIT_BRANCH']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CloneOption', noTags: false, reference: '', shallow: false, timeout: 10], [$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: true, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'e4729b13-caae-4669-972f-5307ae6309f4', url: 'https://github.com/carbyne911/WGWService.git']]])
                     def file = "${WORKSPACE}/ci/deployment/scripts/deploy-scripts/wgw_version"
                     appVersion = readFile(file)
                     println(appVersion)
