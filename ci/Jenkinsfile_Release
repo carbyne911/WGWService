@@ -9,6 +9,7 @@ pipeline {
     options {
         timestamps()
         disableConcurrentBuilds()
+   	    skipDefaultCheckout()	
         timeout(time: 3, unit: 'HOURS')
     }
     agent {
@@ -17,9 +18,9 @@ pipeline {
             yamlFile 'ci/pod.yaml'
         }
     }
-//    triggers {
-//        pollSCM('H/3 * * * *') // every 3 mins
-//    }
+	triggers {
+       pollSCM('H/3 * * * *') // every 3 mins
+    }
     parameters {
         string(name: 'GIT_BRANCH', defaultValue: 'release/XXX', description: 'Name of the SCM branch')
         string(name: 'Stack', defaultValue: 'qa', description: 'Name of the Stack')
@@ -31,10 +32,18 @@ pipeline {
         CODE_DEPLOY_STACK = 'QA'
     }
     stages {
+	    stage ('Checkout Code') {
+            steps {
+            echo 'checkout Code'
+            checkout([$class: 'GitSCM', branches: [[name: '*/origin/$GIT_BRANCH']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CloneOption', noTags: false, reference: '', shallow: false, timeout: 10], [$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: true, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'e4729b13-caae-4669-972f-5307ae6309f4', url: 'https://github.com/carbyne911/WGWService.git']]])
+            }
+            
+        }
         stage('Parsing WGW Build Version') {
             steps {
                 script {
-                    appVersion = readFile(file: 'wgw_version')
+                    def file = "${WORKSPACE}/ci/deployment/scripts/deploy-scripts/wgw_version"
+                    appVersion = readFile(file)
                     println(appVersion)
 
                 }
@@ -77,14 +86,14 @@ pipeline {
         unsuccessful {
             step([$class                  : 'Mailer',
                   notifyEveryUnstableBuild: true,
-                  recipients              : 'hgfhfhf@carbyne911.com',
+                  recipients              : 'team04@carbyne911.com',
                   sendToIndividuals       : true
             ])
         }
         fixed {
             step([$class                  : 'Mailer',
                   notifyEveryUnstableBuild: true,
-                  recipients              : 'hgfhfhf@carbyne911.com',
+                  recipients              : 'team04f@carbyne911.com',
                   sendToIndividuals       : true
             ])
         }
