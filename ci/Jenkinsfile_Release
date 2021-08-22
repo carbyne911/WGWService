@@ -2,13 +2,14 @@
 def appVersion = ''
 gitCredentialsId = 'e4729b13-caae-4669-972f-5307ae6309f4'
 awsCredentialsId = 'dab6216e-af1e-45e8-b957-58796cc47fa2'
-appGitUrl = 'https://ci_reporty@bitbucket.org/reportydev/wgwservice.git'
+appGitUrl = 'hhttps://github.com/carbyne911/WGWService.git'
 imageName = 'wgw_service'
 
 pipeline {
     options {
         timestamps()
         disableConcurrentBuilds()
+	skipDefaultCheckout()
         timeout(time: 3, unit: 'HOURS')
     }
     agent {
@@ -21,7 +22,7 @@ pipeline {
        pollSCM('H/3 * * * *') // every 3 mins
     }
     parameters {
-        string(name: 'GIT_BRANCH', defaultValue: 'release/XXX', description: 'Name of the SCM branch')
+        gitParameter branchFilter: 'origin/(.*)', defaultValue: 'feature/REP-48994', name: 'GIT_BRANCH', type: 'PT_BRANCH'
         string(name: 'Stack', defaultValue: 'qa', description: 'Name of the Stack')
     }
     environment {
