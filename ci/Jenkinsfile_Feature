@@ -18,7 +18,7 @@ pipeline {
         }
     }
 	parameters {
-        string(name: 'GIT_BRANCH', defaultValue: 'feature/REP-48994', description: 'Name of the SCM branch')
+        string(name: 'BUILD_BRANCH', defaultValue: 'feature/REP-48994', description: 'Name of the SCM branch')
         string(name: 'Stack', defaultValue: 'dev', description: 'Name of the Stack')
 
     }
@@ -44,7 +44,7 @@ pipeline {
                 script {
                     utils.buildDockerImageRealTime(
                             ecrRepo: '366789379256.dkr.ecr.eu-west-1.amazonaws.com',
-                            gitBranch:"${GIT_BRANCH}",
+                            gitBranch:"${BUILD_BRANCH}",
                             imageName:"${imageName}_feature",
                             imageNameVer: "${imageName}_feature:$appVersion",
                             imageNameLatest: "${imageName}_feature:latest",
@@ -70,7 +70,7 @@ pipeline {
         always {
             script {
                 manager.addShortText(manager.build.causes.collect { it.shortDescription }.unique(false).join("\n"))
-                manager.addShortText(params.GIT_BRANCH)
+                manager.addShortText(params.BUILD_BRANCH)
             }
         }
         unsuccessful {
