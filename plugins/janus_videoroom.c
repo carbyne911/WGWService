@@ -6098,8 +6098,8 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
        }
 	g_clear_error(&error);
 
-        VERIFY_ELSE_GOTO_CLEANUP(get_port_from_udpsrc_element(gstr, UDPSRC_1_ELEMENT_NAME, log_string, output_rtpforwardport_1),
-				"Unable to get port from pipeline: %s\n", log_string);
+        //VERIFY_ELSE_GOTO_CLEANUP(get_port_from_udpsrc_element(gstr, UDPSRC_1_ELEMENT_NAME, log_string, output_rtpforwardport_1),
+		//		"Unable to get port from pipeline: %s\n", log_string);
 
 	if(MEDIA_AUDIO_MIXER == media_type) {
 		VERIFY_ELSE_GOTO_CLEANUP(get_port_from_udpsrc_element(gstr, UDPSRC_2_ELEMENT_NAME, log_string, output_rtpforwardport_2),
