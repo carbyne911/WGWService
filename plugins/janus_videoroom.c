@@ -6010,8 +6010,14 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 			"rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
 			if(vcodec == JANUS_VIDEOCODEC_VP8) {
 				JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 --------------%s\n",log_string);
-				JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 -------------- Stream=%s Port of outputForward1=%u\n", log_string, *output_rtpforwardport_1);
-				JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 -------------- Stream=%s Port of outputForward2=%u\n", log_string, *output_rtpforwardport_2);
+				if (output_rtpforwardport_1 != NULL)
+				{
+					JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 -------------- Stream=%s Port of outputForward1=%u\n", log_string, *output_rtpforwardport_1);
+				}
+				if (output_rtpforwardport_2 != NULL)
+				{
+					JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 -------------- Stream=%s Port of outputForward2=%u\n", log_string, *output_rtpforwardport_2);
+				}
 				JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 -------------- Stream=%s Port of forwardPort1=%u\n", log_string, room->gst_thread_parameters[media_type].forward_port_1);
 				JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 -------------- Stream=%s Port of forwardPort2=%u\n", log_string, room->gst_thread_parameters[media_type].forward_port_2);
 
