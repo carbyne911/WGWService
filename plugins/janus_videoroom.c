@@ -6021,12 +6021,16 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 				JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 -------------- Stream=%s Port of forwardPort1=%u\n", log_string, room->gst_thread_parameters[media_type].forward_port_1);
 				JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 -------------- Stream=%s Port of forwardPort2=%u\n", log_string, room->gst_thread_parameters[media_type].forward_port_2);
 
-				IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
-				"udpsrc address=127.0.0.1 port=0 name=%s "
-				" caps=\"application/x-rtp,media=video,encoding-name=VP8\" !"
-				" rtpjitterbuffer ! rtpvp8depay name=rtpvp8depayVideo ! vp8dec ! queue max-size-time=10000000 ! videoconvert ! x264enc ! "
-				" rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_UDP location=\"%s\" latency=0",
-                 		UDPSRC_1_ELEMENT_NAME, rtsp_full_url), "launch_string", 0, MAX_STRING_LEN);
+				//IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
+				//"udpsrc address=127.0.0.1 port=0 name=%s "
+				//" caps=\"application/x-rtp,media=video,encoding-name=VP8\" !"
+				//" rtpjitterbuffer ! rtpvp8depay name=rtpvp8depayVideo ! vp8dec ! queue max-size-time=10000000 ! videoconvert ! x264enc ! "
+				//" rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_UDP location=\"%s\" latency=0",
+                // 		UDPSRC_1_ELEMENT_NAME, rtsp_full_url), "launch_string", 0, MAX_STRING_LEN);
+				*output_rtpforwardport_1 = 55555;
+				g_snprintf(launch_string, MAX_STRING_LEN, "videotestsrc name=%s ! autovideosink",  room->room_id_str); 
+
+
         		} else if(vcodec == JANUS_VIDEOCODEC_H264) {
                 		JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_H264 --------------%s\n",log_string);
                 		IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
