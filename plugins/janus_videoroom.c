@@ -6020,7 +6020,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 				" caps=\"application/x-rtp,media=video,encoding-name=VP8\" !"
 				" rtpjitterbuffer ! rtpvp8depay name=rtpvp8depayVideo ! vp8dec ! queue max-size-time=10000000 ! videoconvert ! x264enc ! "
 				" rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_UDP location=\"%s\" latency=0",
-                 		UDPSRC_1_ELEMENT_NAME, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url), "launch_string", 0, MAX_STRING_LEN);
+                 		UDPSRC_1_ELEMENT_NAME, rtsp_full_url), "launch_string", 0, MAX_STRING_LEN);
         		} else if(vcodec == JANUS_VIDEOCODEC_H264) {
                 		JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_H264 --------------%s\n",log_string);
                 		IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
