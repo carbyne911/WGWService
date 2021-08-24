@@ -28,7 +28,7 @@ pipeline {
         CODE_DEPLOY_STACK = 'Production'
     }
     stages {
-	stage('Pull stage image from ECR') {
+	stage('Push stage image to Prod ECR') {
             steps {
                 script {
                     utils.pullDockerImageProd(
@@ -45,6 +45,35 @@ pipeline {
                     )
                 }
             }
+        }
+    
+   }
+   stage('AWS-CodeDeploy-Production-EU-CENTRAL-1') {
+            steps {
+                script {
+                    utils.awsCodeDeployProdRealTime(
+                            credentialsId: prodCredentialsId,
+                            credentialsIdStage: stageCredentialsId,
+                            codeDeployS3Bucket: codeDeployS3Bucket,
+                    )
+                }
+            }
+        }
+    }
+   post {
+        unsuccessful {
+            step([$class                  : 'Mailer',
+                  notifyEveryUnstableBuild: true,
+                  recipients              : 'team04@carbyne911.com',
+                  sendToIndividuals       : true
+            ])
+        }
+        fixed {
+            step([$class                  : 'Mailer',
+                  notifyEveryUnstableBuild: true,
+                  recipients              : 'team04@carbyne911.com',
+                  sendToIndividuals       : true
+            ])
         }
 }
 }
