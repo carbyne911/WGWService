@@ -28,28 +28,7 @@ pipeline {
         CODE_DEPLOY_STACK = 'Production'
     }
     stages {
-	stage('Push stage image to Prod ECR') {
-            steps {
-                script {
-                    utils.pullDockerImageProd(
-		                    awsRegion: "${awsRegion}",
-                        ecrRepo: '366789379256.dkr.ecr.eu-west-1.amazonaws.com',
-			                  ecrRepoProd: '924197678267.dkr.ecr.eu-west-1.amazonaws.com',
-                        imageName:"${imageName}_stage",
-			                  imageNameProd:"${imageName}",
-			                  imageNameVersion:"${imageName}_stage:${WGW_VERSION}",
-			                  imageNameVersionProd:"${imageName}:${WGW_VERSION}",
-                        dockerCredentialsId: 'ecr:eu-west-1:dab6216e-af1e-45e8-b957-58796cc47fa2',
-			                  proddockerCredentialsId: 'ecr:eu-west-1:aws-credentials-production',
-                            
-
-                    )
-                }
-            }
-        }
-    
-   }
-   stage('AWS-CodeDeploy-Production-US-EAST-2') {
+    stage('AWS-CodeDeploy-Production-US-EAST-2') {
             steps {
                 script {
                     utils.awsCodeDeployProdRealTime(
