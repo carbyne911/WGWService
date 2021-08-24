@@ -57,19 +57,7 @@ pipeline {
                     )
                 }
             }
-        }/*
-        stage('AWS-CodeDeploy-Production-EU-CENTRAL-1') {
-            steps {
-                script {
-                    utils.awsCodeDeployProd(
-                            credentialsId: prodCredentialsId,
-                            credentialsIdStage: stageCredentialsId,
-                            codeDeployS3Bucket: codeDeployS3Bucket,
-                    )
-                }
-            }
         }
-    }*/
     post {
         always {
             script {
@@ -92,5 +80,5 @@ pipeline {
             ])
         }
     }
-}
+  } 
 }
