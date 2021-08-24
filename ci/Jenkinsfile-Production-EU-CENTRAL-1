@@ -15,7 +15,7 @@ pipeline {
     agent {
         kubernetes {
             cloud 'jenkins'
-            yamlFile 'ci/pod-deploy.yaml'
+            yamlFile 'ci/pod.yaml'
         }
     }
     parameters {
