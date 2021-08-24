@@ -26,6 +26,7 @@ pipeline {
         SERVICE_NAME = 'WGWService'
         STACK = 'prod'
         CODE_DEPLOY_STACK = 'PreProduction'
+		WGW_VERSION = ${WGW_VERSION}
     }
     stages {
     stage('AWS-CodeDeploy-Production-EU-CENTRAL-1') {
