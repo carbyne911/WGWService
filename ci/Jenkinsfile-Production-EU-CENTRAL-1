@@ -2,6 +2,7 @@
 stageCredentialsId = 'dab6216e-af1e-45e8-b957-58796cc47fa2'
 prodCredentialsId = 'aws-credentials-production'
 codeDeployS3Bucket = 'carbyne-wgw-service-releases-prod'
+awsRegion = 'eu-west-1'
 imageName = 'wgw_service'
 
 
@@ -32,6 +33,7 @@ pipeline {
             steps {
                 script {
                     utils.pullDockerImageProd(
+		            awsRegion: "${awsRegion}",
                             ecrRepo: '366789379256.dkr.ecr.eu-west-1.amazonaws.com',
 			    ecrRepoProd: '924197678267.dkr.ecr.eu-west-1.amazonaws.com',
                             imageName:"${imageName}_stage",
