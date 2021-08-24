@@ -58,27 +58,4 @@ pipeline {
                 }
             }
         }
-    post {
-        always {
-            script {
-                manager.addShortText(manager.build.causes.collect { it.shortDescription }.join("\n"))
-                manager.addShortText("v" + params.APP_VERSION)
-            }
-        }
-        unsuccessful {
-            step([$class                  : 'Mailer',
-                  notifyEveryUnstableBuild: true,
-                  recipients              : 'meni-team@carbyne911.com',
-                  sendToIndividuals       : true
-            ])
-        }
-        fixed {
-            step([$class                  : 'Mailer',
-                  notifyEveryUnstableBuild: true,
-                  recipients              : 'meni-team@carbyne911.com',
-                  sendToIndividuals       : true
-            ])
-        }
-    }
-  } 
 }
