@@ -57,8 +57,7 @@ pipeline {
                     )
                 }
             }
-        }
-	/*
+        }/*
         stage('AWS-CodeDeploy-Production-EU-CENTRAL-1') {
             steps {
                 script {
