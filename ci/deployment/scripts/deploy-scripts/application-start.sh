@@ -44,8 +44,7 @@ function check_group() {
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceStaging" && 
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProduction" && 
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProductionGov" && 
-        "$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProduction" \ 
-         ]]; then
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProduction" ]]; then
         echo "Unknown DEPLOYMENT_GROUP_NAME: $DEPLOYMENT_GROUP_NAME"
         exit 1
     fi
