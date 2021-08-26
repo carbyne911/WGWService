@@ -24,10 +24,10 @@ case "$DEPLOYMENT_GROUP_NAME" in
 *) aws_creds_volume="" ;;
 esac
 
-
 if [[ "${WGW_VERSION}" != "" ]]; then
-    IMAGE_TAG=WGW_VERION
+    IMAGE_TAG=$WGW_VERION
 fi
+
 
 
 if [[ "${IMAGE_TAG}" == "" ]]; then
@@ -39,7 +39,7 @@ if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" || "$DEPLOYMENT_GROUP_N
 fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" ]]; then
-    711704522513.dkr.ecr.us-gov-west-1.amazonaws.com/
+    DOCKER_REPO=711704522513.dkr.ecr.us-gov-west-1.amazonaws.com/
     REGION=us-gov-west-1
 fi
 

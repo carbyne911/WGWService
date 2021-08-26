@@ -27,7 +27,7 @@ if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" || "$DEPLOYMENT_GROUP_N
 fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" ]]; then
-    711704522513.dkr.ecr.us-gov-west-1.amazonaws.com/
+    DOCKER_REPO=711704522513.dkr.ecr.us-gov-west-1.amazonaws.com/
     REGION=us-gov-west-1
 fi
 
@@ -46,8 +46,5 @@ function check_group() {
 }
 check_group
 
-echo docker pull $DOCKER_REPO$IMAGE_NAME${WGW_images[$DEPLOYMENT_GROUP_NAME]}:$IMAGE_TAG
-
- 
-#aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $DOCKER_REPO
-#docker pull $DOCKER_REPO$IMAGE_NAME${WGW_images[$DEPLOYMENT_GROUP_NAME]}:$IMAGE_TAG
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $DOCKER_REPO
+docker pull $DOCKER_REPO$IMAGE_NAME${WGW_images[$DEPLOYMENT_GROUP_NAME]}:$IMAGE_TAG
