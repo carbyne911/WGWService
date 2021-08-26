@@ -14,10 +14,6 @@ declare -A WGW_images=(\
 ["WGWServiceProductionGov"]=_gov \
 )
 
-if [[ "${WGW_VERSION}" != "" ]]; then
-    IMAGE_TAG=$WGW_VERION
-fi
-
 if [[ "${IMAGE_TAG}" == "" ]]; then
     IMAGE_TAG=latest
 fi

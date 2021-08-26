@@ -23,18 +23,10 @@ if [[ "${ENV_VALUE}" == "" ]]; then
     ENV_VALUE="prod"
 fi
 
-
-
-
 case "$DEPLOYMENT_GROUP_NAME" in
 "WGWServiceProductionGov") aws_creds_volume=-v ~/.aws:/root/.aws ;;
 *) aws_creds_volume="" ;;
 esac
-
-if [[ "${WGW_VERSION}" != "" ]]; then
-    IMAGE_TAG=$WGW_VERION
-fi
-
 
 
 if [[ "${IMAGE_TAG}" == "" ]]; then
