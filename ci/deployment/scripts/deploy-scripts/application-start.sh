@@ -15,6 +15,7 @@ declare -A WGW_images=(\
     ["WGWServiceProduction"]=\
     ["WGWServicePreProduction"]=\
     ["WGWServiceProductionGov"]=_gov \
+    ["WGWServicePreProductionGov"]=_gov \
 )
 
 ENV_VALUE=$(echo ${WGW_images[$DEPLOYMENT_GROUP_NAME]} | sed 's/_//')
@@ -37,7 +38,7 @@ if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" || "$DEPLOYMENT_GROUP_N
     DOCKER_REPO=924197678267.dkr.ecr.eu-west-1.amazonaws.com/
 fi
 
-if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" ]]; then
+if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" || "$DEPLOYMENT_GROUP_NAME" == "WGWServicePreProductionGov"  ]]; then
     DOCKER_REPO=711704522513.dkr.ecr.us-gov-west-1.amazonaws.com/
     REGION=us-gov-west-1
 fi
@@ -49,7 +50,8 @@ function check_group() {
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceStaging" && 
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProduction" && 
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProductionGov" && 
-        "$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProduction" ]]; then
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProduction" &&
+		"$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProductionGov" ]]; then
         echo "Unknown DEPLOYMENT_GROUP_NAME: $DEPLOYMENT_GROUP_NAME"
         exit 1
     fi
