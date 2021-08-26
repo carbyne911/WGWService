@@ -1,1 +1,59 @@
-dfd
+@Library('devops-jenkins-lib') _
+stageCredentialsId = 'dab6216e-af1e-45e8-b957-58796cc47fa2'
+prodCredentialsId = 'aws-credentials-production-govcloud'
+codeDeployS3Bucket = 'carbyne-wgw-service-releases-prod'
+imageName = 'wgw_service'
+
+
+pipeline {
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        timeout(time: 2, unit: 'HOURS')
+    }
+    agent {
+        kubernetes {
+            cloud 'jenkins'
+            yamlFile 'ci/pod.yaml'
+        }
+    }
+    parameters {
+        string(name: 'WGW_VERSION', defaultValue: 'X.Y.Z', description: 'Put app version here. Must fill manually.')
+    }
+    environment {
+        AWS_DEFAULT_REGION = 'us-gov-west-1'
+        SERVICE_NAME = 'WGWService'
+        STACK = 'prod'
+        CODE_DEPLOY_STACK = 'PreProductionGov'
+        WGW_VERSION = '${WGW_VERSION}'
+    }
+    stages {
+    stage('AWS-CodeDeploy-PreProduction-US-GOV-WEST-1') {
+            steps {
+                script {
+                    utils.awsCodeDeployProdRealTime(
+                            credentialsId: prodCredentialsId,
+                            credentialsIdStage: stageCredentialsId,
+                            codeDeployS3Bucket: codeDeployS3Bucket,
+                    )
+                }
+            }
+        }
+    }
+   post {
+        unsuccessful {
+            step([$class                  : 'Mailer',
+                  notifyEveryUnstableBuild: true,
+                  recipients              : 'team04@carbyne911.com',
+                  sendToIndividuals       : true
+            ])
+        }
+        fixed {
+            step([$class                  : 'Mailer',
+                  notifyEveryUnstableBuild: true,
+                  recipients              : 'team04@carbyne911.com',
+                  sendToIndividuals       : true
+            ])
+        }
+}
+}
