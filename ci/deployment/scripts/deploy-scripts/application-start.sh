@@ -28,7 +28,10 @@ case "$DEPLOYMENT_GROUP_NAME" in
 "WGWServiceProductionGov") aws_creds_volume=-v ~/.aws:/root/.aws ;;
 *) aws_creds_volume="" ;;
 esac
-
+case "$DEPLOYMENT_GROUP_NAME" in
+"WGWServicePreProductionGov") aws_creds_volume=-v ~/.aws:/root/.aws ;;
+*) aws_creds_volume="" ;;
+esac
 
 if [[ "${IMAGE_TAG}" == "" ]]; then
     IMAGE_TAG=latest
