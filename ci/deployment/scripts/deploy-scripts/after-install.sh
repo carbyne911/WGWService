@@ -20,6 +20,7 @@ fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" || "$DEPLOYMENT_GROUP_NAME" == "WGWServicePreProduction" ]]; then
     DOCKER_REPO=924197678267.dkr.ecr.eu-west-1.amazonaws.com/
+
 fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" ]]; then
