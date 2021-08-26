@@ -19,6 +19,13 @@ declare -A WGW_images=(\
 
 ENV_VALUE=$(echo ${WGW_images[$DEPLOYMENT_GROUP_NAME]} | sed 's/_//')
 
+if [[ "${ENV_VALUE}" == "" ]]; then
+    ENV_VALUE="prod"
+fi
+
+
+
+
 case "$DEPLOYMENT_GROUP_NAME" in
 "WGWServiceProductionGov") aws_creds_volume=-v ~/.aws:/root/.aws ;;
 *) aws_creds_volume="" ;;
