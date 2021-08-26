@@ -1,6 +1,6 @@
 @Library('devops-jenkins-lib') _
 stageCredentialsId = 'dab6216e-af1e-45e8-b957-58796cc47fa2'
-prodCredentialsId = 'aws-credentials-production'
+prodCredentialsId = 'aws-credentials-production-govcloud'
 codeDeployS3Bucket = 'carbyne-wgw-service-releases-prod'
 imageName = 'wgw_service'
 
@@ -9,7 +9,6 @@ pipeline {
     options {
         timestamps()
         disableConcurrentBuilds()
-        skipDefaultCheckout()
         timeout(time: 2, unit: 'HOURS')
     }
     agent {
@@ -26,7 +25,7 @@ pipeline {
         SERVICE_NAME = 'WGWService'
         STACK = 'prod'
         CODE_DEPLOY_STACK = 'ProductionGov'
-        WGW_VERSION = '${WGW_VERSION}'
+        WGW_VERSION = '${WGW_VER}'
     }
     stages {
     stage('AWS-CodeDeploy-Production-US-GOV-WEST-1') {
