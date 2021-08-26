@@ -68,7 +68,7 @@ pipeline {
                             imageNameLatest: "${imageName}_stage:latest",
                             dockerCredentialsId: 'ecr:eu-west-1:dab6216e-af1e-45e8-b957-58796cc47fa2',
                             proddockerCredentialsId: 'ecr:eu-west-1:aws-credentials-production',
-			    GovproddockerCredentialsId: 'aws-credentials-production-govcloud',
+			    GovproddockerCredentialsId: 'ecr:us-gov-west-1:aws-credentials-production-govcloud',
 
                     )
                 }
