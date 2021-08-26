@@ -3,6 +3,8 @@ def appVersion = ''
 gitCredentialsId = 'e4729b13-caae-4669-972f-5307ae6309f4'
 awsCredentialsId = 'dab6216e-af1e-45e8-b957-58796cc47fa2'
 prodCredentialsId = 'aws-credentials-production'
+GovproddockerCredentialsId = 'aws-credentials-production-govcloud'
+
 appGitUrl = 'hhttps://github.com/carbyne911/WGWService.git'
 imageName = 'wgw_service'
 
@@ -55,10 +57,13 @@ pipeline {
                     utils.buildDockerImageRealTime(
                             ecrRepo: '366789379256.dkr.ecr.eu-west-1.amazonaws.com',
 			    ecrRepoProd: '924197678267.dkr.ecr.eu-west-1.amazonaws.com',
+			    ecrRepoProdGov: '711704522513.dkr.ecr.us-gov-west-1.amazonaws.com'
                             gitBranch:"${GIT_BRANCH}",
                             imageName:"${imageName}_stage",
 			    imageNameProd:"${imageName}",
+			    imageNameProdGov:"${imageName}_gov",
 			    imageNameVersionProd:"${imageName}:${appVersion}",
+			    imageNameVersionProdGOV:"${imageName}_gov:${appVersion}",
                             imageNameVer: "${imageName}_stage:${appVersion}",
                             imageNameLatest: "${imageName}_stage:latest",
                             dockerCredentialsId: 'ecr:eu-west-1:dab6216e-af1e-45e8-b957-58796cc47fa2',
