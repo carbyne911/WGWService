@@ -18,14 +18,14 @@ pipeline {
         }
     }
     parameters {
-        string(name: 'WGW_VERSION', defaultValue: 'X.Y.Z', description: 'Put app version here. Must fill manually.')
+        string(name: 'WGW_VER', defaultValue: 'X.Y.Z', description: 'Put app version here. Must fill manually.')
     }
     environment {
         AWS_DEFAULT_REGION = 'eu-central-1'
         SERVICE_NAME = 'WGWService'
         STACK = 'prod'
         CODE_DEPLOY_STACK = 'PreProduction'
-        WGW_VERSION = '${WGW_VERSION}'
+        WGW_VERSION = '${WGW_VER}'
     }
     stages {
     stage('AWS-CodeDeploy-Production-EU-CENTRAL-1') {
