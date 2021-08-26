@@ -10,6 +10,7 @@ declare -A WGW_images=(\
 ["WGWServiceQA"]=_qa \
 ["WGWServiceStaging"]=_stage \
 ["WGWServiceProduction"]= \
+["WGWServicePreProduction"]= \
 ["WGWServiceProductionGov"]=_gov \
 )
 
@@ -18,7 +19,7 @@ if [[ "${IMAGE_TAG}" == "" ]]; then
     IMAGE_TAG=latest
 fi
 
-if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" ]]; then
+if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" || "$DEPLOYMENT_GROUP_NAME" == "WGWServicePreProduction" ]]; then
     DOCKER_REPO=924197678267.dkr.ecr.eu-west-1.amazonaws.com
 fi
 
@@ -33,7 +34,8 @@ function check_group() {
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceQA" &&
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceStaging" &&
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProduction" &&
-        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProductionGov" \
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProductionGov" &&
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProduction" \
             ]]; then
         echo "Unknown DEPLOYMENT_GROUP_NAME: $DEPLOYMENT_GROUP_NAME"
         exit 1
