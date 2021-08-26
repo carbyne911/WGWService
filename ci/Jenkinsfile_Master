@@ -57,7 +57,7 @@ pipeline {
                     utils.buildDockerImageRealTime(
                             ecrRepo: '366789379256.dkr.ecr.eu-west-1.amazonaws.com',
 			    ecrRepoProd: '924197678267.dkr.ecr.eu-west-1.amazonaws.com',
-			    ecrRepoProdGov: '711704522513.dkr.ecr.us-gov-west-1.amazonaws.com'
+			    ecrRepoProdGov: '711704522513.dkr.ecr.us-gov-west-1.amazonaws.com',
                             gitBranch:"${GIT_BRANCH}",
                             imageName:"${imageName}_stage",
 			    imageNameProd:"${imageName}",
