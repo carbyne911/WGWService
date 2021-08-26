@@ -1,6 +1,6 @@
 @Library('devops-jenkins-lib') _
 stageCredentialsId = 'dab6216e-af1e-45e8-b957-58796cc47fa2'
-prodCredentialsId = 'aws-credentials-production'
+prodCredentialsId = 'aws-credentials-production-govcloud'
 codeDeployS3Bucket = 'carbyne-wgw-service-releases-prod'
 imageName = 'wgw_service'
 
