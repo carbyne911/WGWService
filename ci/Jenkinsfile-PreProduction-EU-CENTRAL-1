@@ -9,7 +9,6 @@ pipeline {
     options {
         timestamps()
         disableConcurrentBuilds()
-        skipDefaultCheckout()
         timeout(time: 2, unit: 'HOURS')
     }
     agent {
@@ -29,12 +28,6 @@ pipeline {
         WGW_VERSION = '${WGW_VERSION}'
     }
     stages {
-	stage ('Checkout Code') {
-            steps {
-            echo 'checkout Code'
-            checkout([$class: 'GitSCM', branches: [[name: '*/feature/REP-48994']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CloneOption', noTags: false, reference: '', shallow: false, timeout: 10], [$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: true, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'e4729b13-caae-4669-972f-5307ae6309f4', url: 'https://github.com/carbyne911/WGWService.git']]])
-            }    
-        }
     stage('AWS-CodeDeploy-Production-EU-CENTRAL-1') {
             steps {
                 script {
