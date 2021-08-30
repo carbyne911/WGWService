@@ -136,8 +136,8 @@ COPY config/janus.transport.http.jcfg /home/ubuntu
 COPY config/janus.transport.websockets.jcfg /home/ubuntu
 COPY config/janus.plugin.videoroom.jcfg /home/ubuntu
 COPY scripts/systemctl3.py /usr/bin/systemctl
-COPY entrypoint.sh  /home/ubuntu
 COPY config/amazon-cloudwatch-agent.json /home/ubuntu
+COPY entrypoint.sh  /home/ubuntu
 
 RUN mkdir /home/ubuntu/logs/ \
     && touch $WGW_LOG_FILE_PATH \
