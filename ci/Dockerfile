@@ -146,9 +146,7 @@ RUN mkdir /home/ubuntu/logs/ \
 RUN test -L /bin/systemctl || ln -sf /usr/bin/systemctl /bin/systemctl
 RUN chmod +x /usr/bin/systemctl
 
-# change the premissions of entrypoint
-RUN chmod +x /home/ubuntu/entrypoint.sh \
-    && sed -i -e 's/\r$//' /home/ubuntu/entrypoint.sh
+
 
 
 
@@ -326,5 +324,7 @@ EXPOSE 20000-40000
 EXPOSE 20000-40000/udp
 
 COPY entrypoint.sh  /home/ubuntu
-
+# change the premissions of entrypoint
+RUN chmod +x /home/ubuntu/entrypoint.sh \
+    && sed -i -e 's/\r$//' /home/ubuntu/entrypoint.sh
 ENTRYPOINT ["/home/ubuntu/entrypoint.sh"]
