@@ -24,14 +24,7 @@ if [[ "${ENV_VALUE}" == "" ]]; then
     ENV_VALUE="prod"
 fi
 
-case "$DEPLOYMENT_GROUP_NAME" in
-"WGWServiceProductionGov") aws_creds_volume=-v ~/.aws:/root/.aws ;;
-*) aws_creds_volume="" ;;
-esac
-case "$DEPLOYMENT_GROUP_NAME" in
-"WGWServicePreProductionGov") aws_creds_volume=-v ~/.aws:/root/.aws ;;
-*) aws_creds_volume="" ;;
-esac
+
 
 if [[ "${IMAGE_TAG}" == "" ]]; then
     IMAGE_TAG=latest
@@ -68,7 +61,6 @@ EC2_REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/doc
 SGW_APPLICATION_URL=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$EC2_INSTANCE_ID" "Name=key,Values=sgwUrl" --region=$EC2_REGION --output=text | cut -f5)
 WGW_URL=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$EC2_INSTANCE_ID" "Name=key,Values= UrlTag" --region=$EC2_REGION --output=text | cut -f5)
 docker run -dit --rm --net=host \
-$aws_creds_volume \
 --name WGWService \
 -v $WGW_LOG_FILE_PATH:$WGW_LOG_FILE_PATH \
 -e SGW_URL=$SGW_APPLICATION_URL \
