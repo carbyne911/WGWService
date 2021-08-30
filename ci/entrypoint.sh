@@ -75,9 +75,9 @@ function update_public_ip_on_route_53() {
         aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }'
 
     elif [[ $JANUS_ENV == "gov" ]]; then
-		AWS_CREDENTIALS_FILE_PATH=/home/ubuntu/prod_account
+	AWS_CREDENTIALS_FILE_PATH=/home/ubuntu/prod_account
         aws s3 cp s3://carbyne-deployment-conf-prod/mfs-service/dependencies/prod_account $AWS_CREDENTIALS_FILE_PATH
-		get_aws_credentials
+	get_aws_credentials
         aws configure set default.region us-east-1 --profile route53 --region aws-global
         aws configure set aws_access_key_id $AWS_CREDENTIALS_ACCESS_KEY_ID --profile route53 --region aws-global
         aws configure set aws_secret_access_key $AWS_CREDENTIALS_SECRET_ACCESS_KEY --profile route53 --region aws-global
