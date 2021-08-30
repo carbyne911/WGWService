@@ -137,7 +137,7 @@ COPY config/janus.transport.websockets.jcfg /home/ubuntu
 COPY config/janus.plugin.videoroom.jcfg /home/ubuntu
 COPY scripts/systemctl3.py /usr/bin/systemctl
 COPY config/amazon-cloudwatch-agent.json /home/ubuntu
-COPY entrypoint.sh  /home/ubuntu
+
 
 RUN mkdir /home/ubuntu/logs/ \
     && touch $WGW_LOG_FILE_PATH \
@@ -325,6 +325,6 @@ EXPOSE 443
 EXPOSE 20000-40000                                                                                                  
 EXPOSE 20000-40000/udp
 
-
+COPY entrypoint.sh  /home/ubuntu
 
 ENTRYPOINT ["/home/ubuntu/entrypoint.sh"]
