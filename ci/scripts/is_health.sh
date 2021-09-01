@@ -19,7 +19,7 @@ else
     touch $LOG_FILE
 fi
 function report {
-      echo "[HealthCheckScript] - Status is unhealthy, reporting to AWS EC2 handler!" >>$LOG_FILE_PATH
+      echo "[HealthCheckScript] - Status is unhealthy, reporting to AWS EC2 handler!" >>$LOG_FILE
       aws autoscaling set-instance-health --instance-id $EC2_INSTANCE_ID --region=$EC2_REGION --health-status Unhealthy
       #aws autoscaling set-instance-health --instance-id $EC2_INSTANCE_ID --region=$EC2_REGION  --health-status Healthy
 }
