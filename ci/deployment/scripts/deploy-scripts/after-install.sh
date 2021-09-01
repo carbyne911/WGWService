@@ -19,11 +19,11 @@ if [[ "${IMAGE_TAG}" == "" ]]; then
 fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" ]]; then
-    DOCKER_REPO=924197678267.dkr.ecr.eu-west-1.amazonaws.com
+    DOCKER_REPO=924197678267.dkr.ecr.eu-west-1.amazonaws.com/
 fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" ]]; then
-    711704522513.dkr.ecr.us-gov-west-1.amazonaws.com
+    DOCKER_REPO=711704522513.dkr.ecr.us-gov-west-1.amazonaws.com/
     REGION=us-gov-west-1
 fi
 
