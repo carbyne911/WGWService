@@ -68,6 +68,7 @@ function health {
             if [ "$JANUS_APP_IS_RUNNING_STATUS" == "0" ]; then
                   echo "Janus app is not running!" >>$LOG_FILE
                   cd /home/ubuntu/WGWService
+                  touch core
                   gdb -q -n -ex bt -batch janus core >>$LOG_FILE 2>&1
                   "$FILEPATH" second "$FILEPATH" &
                   exit

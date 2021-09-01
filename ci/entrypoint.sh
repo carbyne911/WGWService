@@ -136,7 +136,7 @@ function configure_application() {
     SGW_CREDS=$(get_conf_entry "sgw_creds")
     SGW_CREDS="${SGW_CREDS%\"}"
     SGW_CREDS_WITHOUT_QUOTES="${SGW_CREDS#\"}"
-    NEW_LINE6='rtsp_url="rtsp://'${SGW_CREDS_WITHOUT_QUOTES}''$SGW_URL':1935/'$SGW_APPLICATION'/" 
+    NEW_LINE6='rtsp_url="rtsp://'${SGW_CREDS_WITHOUT_QUOTES}''$SGW_URL':1935/'$SGW_APPLICATION'/" '
     sed -i '/rtsp_url=/c\'"$NEW_LINE6" "${FILE2}"
 
 }
