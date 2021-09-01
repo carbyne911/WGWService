@@ -10,6 +10,7 @@ declare -A WGW_images=(\
 ["WGWServiceQA"]=_qa \
 ["WGWServiceStaging"]=_stage \
 ["WGWServiceProduction"]= \
+["WGWServicePreProduction"]= \
 ["WGWServiceProductionGov"]=_gov \
 )
 
