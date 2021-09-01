@@ -13,11 +13,11 @@ declare -A WGW_images=(\
 ["WGWServiceQA"]=_qa \
 ["WGWServiceStaging"]=_stage \
 ["WGWServiceProduction"]= \
+["WGWServicePreProduction"]= \
 ["WGWServiceProductionGov"]=_gov \
 )
 
 ENV_VALUE=$(echo ${WGW_images[$DEPLOYMENT_GROUP_NAME]} | sed 's/_//')
-
 
 case "$DEPLOYMENT_GROUP_NAME" in
  "WGWServiceProductionGov" ) aws_creds_volume=-v ~/.aws:/root/.aws ;;
@@ -28,12 +28,13 @@ if [[ "${IMAGE_TAG}" == "" ]]; then
     IMAGE_TAG=latest
 fi
 
-if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" ]]; then
-    DOCKER_REPO=924197678267.dkr.ecr.eu-west-1.amazonaws.com
+if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" || "$DEPLOYMENT_GROUP_NAME" == "WGWServicePreProduction" ]]; then
+    DOCKER_REPO=924197678267.dkr.ecr.eu-west-1.amazonaws.com/
+				ENV_VALUE="prod"
 fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" ]]; then
-    711704522513.dkr.ecr.us-gov-west-1.amazonaws.com
+    DOCKER_REPO=711704522513.dkr.ecr.us-gov-west-1.amazonaws.com/
     REGION=us-gov-west-1
 fi
 
