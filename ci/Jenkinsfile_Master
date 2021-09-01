@@ -22,7 +22,7 @@ pipeline {
         }
     }
     triggers {
-        pollSCM('H/3 * * * *') // every 3 mins
+        pollSCM('H/30 * * * *') // every 30 mins
     }
     parameters {
         gitParameter branchFilter: 'origin/(.*)', defaultValue: 'master', name: 'GIT_BRANCH', type: 'PT_BRANCH'
