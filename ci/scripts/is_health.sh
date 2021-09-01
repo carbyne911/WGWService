@@ -5,7 +5,7 @@ JANUS_HTTP_ADMIN_PORT=7889
 
 PORT_IS_OPEN=0
 PORT_IS_CLOSED=1
-
+FILEPATH=/home/ec2-user/is_health.sh
 #At setup:   /home/ec2-user/is_health.sh  -setup
 #For test   /home/ec2-user/is_health.sh  -health first  /home/ec2-user/is_health.sh
 EC2_INSTANCE_ID="$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || terminate \"wget instance-id has failed: $?\")"
@@ -69,15 +69,15 @@ function health {
                   echo "Janus app is not running!" >>$LOG_FILE
                   cd /home/ubuntu/WGWService
                   gdb -q -n -ex bt -batch janus core >>$LOG_FILE 2>&1
-                  "$FILEPATH" -health second "$FILEPATH" &
+                  "$FILEPATH" second "$FILEPATH" &
                   exit
             elif [ "$JANUS_WEB_SOCKET_SIGNALLING_PORT_STATUS" == "$PORT_IS_CLOSED" ]; then
                   echo "Janus port=${JANUS_WEB_SOCKET_SIGNALLING_PORT} is not listening!" >>$LOG_FILE_PATH
-                  "$FILEPATH" -health second "$FILEPATH" &
+                  "$FILEPATH" second "$FILEPATH" &
                   exit
             elif [ "$JANUS_HTTP_ADMIN_PORT_STATUS" == "$PORT_IS_CLOSED" ]; then
                   echo "Janus port=${JANUS_HTTP_ADMIN_PORT} is not listening!" >>$LOG_FILE
-                  "$FILEPATH" -health second "$FILEPATH" &
+                  "$FILEPATH" second "$FILEPATH" &
                   exit
             else
                   echo "First Test..PASS"
