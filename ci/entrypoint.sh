@@ -1,5 +1,5 @@
 #!/bin/bash
-
+ 
 EC2_PUBLIC_IPV4=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 HEALTH_LOG_PATH=/home/ubuntu/logs/health_log.log
 function get_aws_credentials() {
