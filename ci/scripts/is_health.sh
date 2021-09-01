@@ -112,32 +112,6 @@ function health() {
                   exit
             fi
 
-      # elif [ "$RUN" == 'second' ]; then
-      #       echo "RUN-----2----Sleep 10s "
-      #       sleep 10
-      #       JANUS_APP_IS_RUNNING_STATUS=$(ps aux | pgrep janus | wc -l)
-      #       JANUS_WEB_SOCKET_SIGNALLING_PORT_STATUS=$(
-      #             nc -zv localhost ${JANUS_WEB_SOCKET_SIGNALLING_PORT} &>/dev/null
-      #             echo $?
-      #       )
-      #       JANUS_HTTP_ADMIN_PORT_STATUS=$(
-      #             nc -zv localhost ${JANUS_HTTP_ADMIN_PORT} &>/dev/null
-      #             echo $?
-      #       )
-      #       if [ "$JANUS_APP_IS_RUNNING_STATUS" == "0" ]; then
-      #             echo "Janus app is not running!" >>$LOG_FILE
-      #             report
-      #       elif [ "$JANUS_WEB_SOCKET_SIGNALLING_PORT_STATUS" == "$PORT_IS_CLOSED" ]; then
-      #             echo "Janus port=${JANUS_WEB_SOCKET_SIGNALLING_PORT} is not listening!" >>$LOG_FILE
-      #             report
-      #       elif [ "$JANUS_HTTP_ADMIN_PORT_STATUS" == "$PORT_IS_CLOSED" ]; then
-      #             echo "Janus port=${JANUS_HTTP_ADMIN_PORT} is not listening!" >>$LOG_FILE
-      #             report
-      #       else
-      #             echo "Second Test..PASS"
-      #             exit
-      #       fi
-
       fi
 }
 echo "$(date) with user $(whoami) running health script"
