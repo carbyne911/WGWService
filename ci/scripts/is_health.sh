@@ -5,7 +5,7 @@ JANUS_HTTP_ADMIN_PORT=7889
 
 PORT_IS_OPEN=0
 PORT_IS_CLOSED=1
-
+FILEPATH=/home/ubuntu/is_health.sh
 #At setup:   /home/ec2-user/is_health.sh  -setup
 #For test   /home/ec2-user/is_health.sh  -health first  /home/ec2-user/is_health.sh
 EC2_INSTANCE_ID="$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || terminate \"wget instance-id has failed: $?\")"
@@ -13,17 +13,45 @@ EC2_REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/doc
 
 LOG_FILE=/home/ubuntu/logs/health_log.log
 if [ -f "$LOG_FILE" ]; then
-    echo "$LOG_FILE exists."
-else 
-    echo "$LOG_FILE does not exist. creating"
-    touch $LOG_FILE
+      echo "$LOG_FILE exists."
+else
+      echo "$LOG_FILE does not exist. creating"
+      touch $LOG_FILE
 fi
-function report {
-      echo "[HealthCheckScript] - Status is unhealthy, reporting to AWS EC2 handler!" >>$LOG_FILE_PATH
+function report() {
+      echo "[HealthCheckScript] - Status is unhealthy, reporting to AWS EC2 handler!" >>$LOG_FILE
       aws autoscaling set-instance-health --instance-id $EC2_INSTANCE_ID --region=$EC2_REGION --health-status Unhealthy
       #aws autoscaling set-instance-health --instance-id $EC2_INSTANCE_ID --region=$EC2_REGION  --health-status Healthy
 }
-function health {
+
+function second() {
+      echo "RUN-----2----Sleep 10s "
+      sleep 10
+      JANUS_APP_IS_RUNNING_STATUS=$(ps aux | pgrep janus | wc -l)
+      JANUS_WEB_SOCKET_SIGNALLING_PORT_STATUS=$(
+            nc -zv localhost ${JANUS_WEB_SOCKET_SIGNALLING_PORT} &>/dev/null
+            echo $?
+      )
+      JANUS_HTTP_ADMIN_PORT_STATUS=$(
+            nc -zv localhost ${JANUS_HTTP_ADMIN_PORT} &>/dev/null
+            echo $?
+      )
+      if [ "$JANUS_APP_IS_RUNNING_STATUS" == "0" ]; then
+            echo "Janus app is not running!" >>$LOG_FILE
+            report
+      elif [ "$JANUS_WEB_SOCKET_SIGNALLING_PORT_STATUS" == "$PORT_IS_CLOSED" ]; then
+            echo "Janus port=${JANUS_WEB_SOCKET_SIGNALLING_PORT} is not listening!" >>$LOG_FILE
+            report
+      elif [ "$JANUS_HTTP_ADMIN_PORT_STATUS" == "$PORT_IS_CLOSED" ]; then
+            echo "Janus port=${JANUS_HTTP_ADMIN_PORT} is not listening!" >>$LOG_FILE
+            report
+      else
+            echo "Second Test..PASS"
+            exit
+      fi
+}
+
+function health() {
       echo "$RUN"
 
       echo "start of health function"
@@ -67,52 +95,24 @@ function health {
             echo "RUN:-----1---- "
             if [ "$JANUS_APP_IS_RUNNING_STATUS" == "0" ]; then
                   echo "Janus app is not running!" >>$LOG_FILE
-                  cd /home/ubuntu/WGWService
-                  gdb -q -n -ex bt -batch janus core >>$LOG_FILE 2>&1
-                  "$FILEPATH" -health second "$FILEPATH" &
+                  # cd /home/ubuntu/WGWService
+                  # gdb -q -n -ex bt -batch janus core >>$LOG_FILE 2>&1
+                  second
                   exit
             elif [ "$JANUS_WEB_SOCKET_SIGNALLING_PORT_STATUS" == "$PORT_IS_CLOSED" ]; then
                   echo "Janus port=${JANUS_WEB_SOCKET_SIGNALLING_PORT} is not listening!" >>$LOG_FILE_PATH
-                  "$FILEPATH" -health second "$FILEPATH" &
+                  second
                   exit
             elif [ "$JANUS_HTTP_ADMIN_PORT_STATUS" == "$PORT_IS_CLOSED" ]; then
                   echo "Janus port=${JANUS_HTTP_ADMIN_PORT} is not listening!" >>$LOG_FILE
-                  "$FILEPATH" -health second "$FILEPATH" &
+                  second
                   exit
             else
                   echo "First Test..PASS"
                   exit
             fi
 
-      elif [ "$RUN" == 'second' ]; then
-            echo "RUN-----2----Sleep 10s "
-            sleep 10
-            JANUS_APP_IS_RUNNING_STATUS=$(ps aux | pgrep janus | wc -l)
-            JANUS_WEB_SOCKET_SIGNALLING_PORT_STATUS=$(
-                  nc -zv localhost ${JANUS_WEB_SOCKET_SIGNALLING_PORT} &>/dev/null
-                  echo $?
-            )
-            JANUS_HTTP_ADMIN_PORT_STATUS=$(
-                  nc -zv localhost ${JANUS_HTTP_ADMIN_PORT} &>/dev/null
-                  echo $?
-            )
-            if [ "$JANUS_APP_IS_RUNNING_STATUS" == "0" ]; then
-                  echo "Janus app is not running!" >>$LOG_FILE
-                  report
-            elif [ "$JANUS_WEB_SOCKET_SIGNALLING_PORT_STATUS" == "$PORT_IS_CLOSED" ]; then
-                  echo "Janus port=${JANUS_WEB_SOCKET_SIGNALLING_PORT} is not listening!" >>$LOG_FILE
-                  report
-            elif [ "$JANUS_HTTP_ADMIN_PORT_STATUS" == "$PORT_IS_CLOSED" ]; then
-                  echo "Janus port=${JANUS_HTTP_ADMIN_PORT} is not listening!" >>$LOG_FILE
-                  report
-            else
-                  echo "Second Test..PASS"
-                  exit
-            fi
-
       fi
-      exit
 }
-
 echo "$(date) with user $(whoami) running health script"
 health
