@@ -4,9 +4,6 @@ JANUS_HTTP_ADMIN_PORT=7889
 
 PORT_IS_OPEN=0
 PORT_IS_CLOSED=1
-FILEPATH=/home/ubuntu/is_health.sh
-#At setup:   /home/ec2-user/is_health.sh  -setup
-#For test   /home/ec2-user/is_health.sh  -health first  /home/ec2-user/is_health.sh
 EC2_INSTANCE_ID="$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || terminate \"wget instance-id has failed: $?\")"
 EC2_REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | awk -F\" '{print $4}')
 
@@ -20,7 +17,6 @@ fi
 function report() {
       echo "[HealthCheckScript] - Status is unhealthy, reporting to AWS EC2 handler!" >>$LOG_FILE
       aws autoscaling set-instance-health --instance-id $EC2_INSTANCE_ID --region=$EC2_REGION --health-status Unhealthy
-      #aws autoscaling set-instance-health --instance-id $EC2_INSTANCE_ID --region=$EC2_REGION  --health-status Healthy
 }
 
 function second() {
