@@ -88,6 +88,7 @@ function update_public_ip_on_route_53() {
         echo "creating credentials file"
 
         touch ~/.aws/credentials
+        touch ~/.aws/config
         # rm -f ~/.aws/credentials
         # cp ~/.aws/credentials ~/.aws/credentials.backup
 
