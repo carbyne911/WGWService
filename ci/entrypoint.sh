@@ -1,5 +1,5 @@
 #!/bin/bash
- 
+
 EC2_PUBLIC_IPV4=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 HEALTH_LOG_PATH=/home/ubuntu/logs/health_log.log
 function get_aws_credentials() {
@@ -75,14 +75,23 @@ function update_public_ip_on_route_53() {
         aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }'
 
     elif [[ $JANUS_ENV == "gov" ]]; then
-	AWS_CREDENTIALS_FILE_PATH=/home/ubuntu/prod_account
+        AWS_CREDENTIALS_FILE_PATH=/home/ubuntu/prod_account
         aws s3 cp s3://carbyne-deployment-conf-prod/mfs-service/dependencies/prod_account $AWS_CREDENTIALS_FILE_PATH
-	get_aws_credentials
-        aws configure set default.region us-east-1 --profile route53 --region aws-global
-        aws configure set aws_access_key_id $AWS_CREDENTIALS_ACCESS_KEY_ID --profile route53 --region aws-global
-        aws configure set aws_secret_access_key $AWS_CREDENTIALS_SECRET_ACCESS_KEY --profile route53 --region aws-global
-        aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }' --profile route53 --region aws-global
+        cp ~/.aws/credentials ~/.aws/credentials.backup
+        rm -f ~/.aws/credentials
+        touch ~/.aws/credentials
+
+        echo "cat ${AWS_CREDENTIALS_FILE_PATH}" >> ~/.aws/credentials
+
+        echo "printing credentials file"
+        cat $AWS_CREDENTIALS_FILE_PATH
+        get_aws_credentials
+        aws configure set default.region us-east-1 --profile default --region aws-global
+        aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }' --profile default --region aws-global
         aws configure set default.region $EC2_REGION
+        rm -f ~/.aws/credentials
+        cp ~/.aws/credentials.backup ~/.aws/credentials 
+        
     else
         echo "[-] Not a valid env value configured, use a proper one from the following - local, feature, dev, qa, stage, prod, gov"
         exit
