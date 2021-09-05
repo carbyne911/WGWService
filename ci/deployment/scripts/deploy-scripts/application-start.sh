@@ -8,13 +8,14 @@ DOCKER_REPO=366789379256.dkr.ecr.eu-west-1.amazonaws.com/
 IMAGE_NAME=wgw_service
 IMAGE_TAG="$(cat $(dirname $0)/wgw_version)"
 declare -A WGW_images=(\
-["WGWServiceFeature"]=_feature \
-["WGWServiceDevelopment"]=_dev \
-["WGWServiceQA"]=_qa \
-["WGWServiceStaging"]=_stage \
-["WGWServiceProduction"]= \
-["WGWServicePreProduction"]= \
-["WGWServiceProductionGov"]=_gov \
+    ["WGWServiceFeature"]=_feature \
+    ["WGWServiceDevelopment"]=_dev \
+    ["WGWServiceQA"]=_qa \
+    ["WGWServiceStaging"]=_stage \
+    ["WGWServiceProduction"]=\
+    ["WGWServicePreProduction"]=\
+    ["WGWServiceProductionGov"]=_gov \
+    ["WGWServicePreProductionGov"]=_gov \
 )
 
 ENV_VALUE=$(echo ${WGW_images[$DEPLOYMENT_GROUP_NAME]} | sed 's/_//')
@@ -24,28 +25,32 @@ case "$DEPLOYMENT_GROUP_NAME" in
  *) aws_creds_volume="" ;;
 esac
 
+
+
 if [[ "${IMAGE_TAG}" == "" ]]; then
     IMAGE_TAG=latest
 fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" || "$DEPLOYMENT_GROUP_NAME" == "WGWServicePreProduction" ]]; then
     DOCKER_REPO=924197678267.dkr.ecr.eu-west-1.amazonaws.com/
-				ENV_VALUE="prod"
+		ENV_VALUE="prod"
 fi
 
-if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" ]]; then
+
+if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" || "$DEPLOYMENT_GROUP_NAME" == "WGWServicePreProductionGov"  ]]; then
     DOCKER_REPO=711704522513.dkr.ecr.us-gov-west-1.amazonaws.com/
     REGION=us-gov-west-1
 fi
 
 function check_group() {
-    if [[ "$DEPLOYMENT_GROUP_NAME" != "WGWServiceFeature" &&
-        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceDevelopment" &&
-        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceQA" &&
-        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceStaging" &&
-        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProduction" &&
-        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProductionGov" \
-            ]]; then
+    if [[ "$DEPLOYMENT_GROUP_NAME" != "WGWServiceFeature" && 
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceDevelopment" && 
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceQA" && 
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceStaging" && 
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProduction" && 
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProductionGov" && 
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProduction" &&
+		"$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProductionGov" ]]; then
         echo "Unknown DEPLOYMENT_GROUP_NAME: $DEPLOYMENT_GROUP_NAME"
         exit 1
     fi
@@ -54,12 +59,11 @@ check_group
 
 CONF_VERSION="$(. $(dirname $0)/aws/get-conf-version.sh)"
 
-EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || terminate \"wget instance-id has failed: $?\"`"
+EC2_INSTANCE_ID="$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || terminate \"wget instance-id has failed: $?\")"
 EC2_REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | awk -F\" '{print $4}')
 SGW_APPLICATION_URL=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$EC2_INSTANCE_ID" "Name=key,Values=sgwUrl" --region=$EC2_REGION --output=text | cut -f5)
 WGW_URL=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$EC2_INSTANCE_ID" "Name=key,Values= UrlTag" --region=$EC2_REGION --output=text | cut -f5)
 docker run -dit --rm --net=host \
-$aws_creds_volume \
 --name WGWService \
 -v $WGW_LOG_FILE_PATH:$WGW_LOG_FILE_PATH \
 -e SGW_URL=$SGW_APPLICATION_URL \
