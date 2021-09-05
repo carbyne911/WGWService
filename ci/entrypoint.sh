@@ -258,7 +258,7 @@ function configure_and_setup_crontab_scheduled_jobs() {
     configure_log_rotate
     (
         crontab -l
-        echo "* * * * * /home/ubuntu/is_health.sh first"
+        echo "* * * * * /home/ubuntu/is_health.sh"
     ) | crontab
     (
         crontab -l
