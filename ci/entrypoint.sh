@@ -83,9 +83,10 @@ function update_public_ip_on_route_53() {
     elif [[ $JANUS_ENV == "gov" ]]; then
         AWS_CREDENTIALS_FILE_PATH=/home/ubuntu/prod_account
         aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/dependencies/prod_account $AWS_CREDENTIALS_FILE_PATH --region us-gov-west-1
-        cp ~/.aws/credentials ~/.aws/credentials.backup
-        rm -f ~/.aws/credentials
+        mkdir ~/.aws
         touch ~/.aws/credentials
+        # rm -f ~/.aws/credentials
+        # cp ~/.aws/credentials ~/.aws/credentials.backup
 
         echo "cat ${AWS_CREDENTIALS_FILE_PATH}" >> ~/.aws/credentials
 
@@ -96,7 +97,7 @@ function update_public_ip_on_route_53() {
         aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }' --profile default --region aws-global
         aws configure set default.region $EC2_REGION
         rm -f ~/.aws/credentials
-        cp ~/.aws/credentials.backup ~/.aws/credentials 
+        rm -f ~/.aws/credentials 
         
     else
         echo "[-] Not a valid env value configured, use a proper one from the following - local, feature, dev, qa, stage, prod, gov"
