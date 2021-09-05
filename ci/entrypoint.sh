@@ -82,14 +82,17 @@ function update_public_ip_on_route_53() {
 
     elif [[ $JANUS_ENV == "gov" ]]; then
         AWS_CREDENTIALS_FILE_PATH=/home/ubuntu/prod_account
-        aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/dependencies/prod_account $AWS_CREDENTIALS_FILE_PATH --region us-gov-west-1
+        aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/prod_account $AWS_CREDENTIALS_FILE_PATH --region us-gov-west-1
+        echo "creating .aws"
         mkdir ~/.aws
+        echo "creating credentials file"
+
         touch ~/.aws/credentials
         # rm -f ~/.aws/credentials
         # cp ~/.aws/credentials ~/.aws/credentials.backup
 
         echo "cat ${AWS_CREDENTIALS_FILE_PATH}" >> ~/.aws/credentials
-
+        cat ~/.aws/credentials
         echo "printing credentials file"
         cat $AWS_CREDENTIALS_FILE_PATH
         get_aws_credentials
