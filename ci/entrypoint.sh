@@ -91,19 +91,14 @@ function update_public_ip_on_route_53() {
         touch ~/.aws/config
         chmod 777 ~/.aws
         chmod 777 ~/.aws/*
-        # rm -f ~/.aws/credentials
-        # cp ~/.aws/credentials ~/.aws/credentials.backup
 
         echo "$(cat ${AWS_CREDENTIALS_FILE_PATH})" >> ~/.aws/credentials
         echo "printing credentials file"
         cat ~/.aws/credentials
-        # get_aws_credentials
         aws configure set default.region us-east-1 --profile default --region aws-global
         aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }' --profile default --region aws-global
         aws configure set default.region $EC2_REGION
-        rm -f ~/.aws/credentials
-        rm -f ~/.aws/credentials 
-        
+        rm -f ~/.aws
     else
         echo "[-] Not a valid env value configured, use a proper one from the following - local, feature, dev, qa, stage, prod, gov"
         exit
