@@ -32,7 +32,7 @@ function download_configurations_from_s3() {
         aws s3 cp s3://carbyne-deployment-conf/wgw-service/dev/deployment$DEPLOYMENT_CONF_VERSION.conf /home/ubuntu --profile ${AWS_CREDENTIALS_PROFILE_NAME}
         aws s3 cp s3://carbyne-deployment-conf/wgw-service/dev/wgw_carbyneapi-dev_com_cert.pem /home/ubuntu
         aws s3 cp s3://carbyne-deployment-conf/wgw-service/dev/wgw_carbyneapi-dev_com_key.pem /home/ubuntu
-    elif [[ "$JANUS_ENV" == "prod"]]; then
+    elif [[ "$JANUS_ENV" == "prod" ]]; then
         aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/deployment$DEPLOYMENT_CONF_VERSION.conf /home/ubuntu
         aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/wgw_carbyneapi_com_cert.pem /home/ubuntu
         aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/wgw_carbyneapi_com_key.pem /home/ubuntu
