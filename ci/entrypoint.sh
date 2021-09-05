@@ -94,7 +94,7 @@ function update_public_ip_on_route_53() {
         # rm -f ~/.aws/credentials
         # cp ~/.aws/credentials ~/.aws/credentials.backup
 
-        echo "cat ${AWS_CREDENTIALS_FILE_PATH}" >> ~/.aws/credentials
+        echo "$(cat ${AWS_CREDENTIALS_FILE_PATH})" >> ~/.aws/credentials
         echo "printing credentials file"
         cat ~/.aws/credentials
         # get_aws_credentials
