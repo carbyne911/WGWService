@@ -14,15 +14,12 @@ declare -A WGW_images=(\
 ["WGWServiceStaging"]=_stage \
 ["WGWServiceProduction"]= \
 ["WGWServicePreProduction"]= \
+["WGWServicePreProductionGov"]=_gov \
 ["WGWServiceProductionGov"]=_gov \
 )
 
 ENV_VALUE=$(echo ${WGW_images[$DEPLOYMENT_GROUP_NAME]} | sed 's/_//')
 
-case "$DEPLOYMENT_GROUP_NAME" in
- "WGWServiceProductionGov" ) aws_creds_volume=-v ~/.aws:/root/.aws ;;
- *) aws_creds_volume="" ;;
-esac
 
 if [[ "${IMAGE_TAG}" == "" ]]; then
     IMAGE_TAG=latest
@@ -30,10 +27,10 @@ fi
 
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" || "$DEPLOYMENT_GROUP_NAME" == "WGWServicePreProduction" ]]; then
     DOCKER_REPO=924197678267.dkr.ecr.eu-west-1.amazonaws.com/
-				ENV_VALUE="prod"
+	ENV_VALUE="prod"
 fi
 
-if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" ]]; then
+if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProductionGov" || "$DEPLOYMENT_GROUP_NAME" == "WGWServicePreProductionGov" ]]; then
     DOCKER_REPO=711704522513.dkr.ecr.us-gov-west-1.amazonaws.com/
     REGION=us-gov-west-1
 fi
@@ -44,6 +41,8 @@ function check_group() {
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceQA" &&
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceStaging" &&
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProduction" &&
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProduction" &&
+        "$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProductionGov" &&
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProductionGov" \
             ]]; then
         echo "Unknown DEPLOYMENT_GROUP_NAME: $DEPLOYMENT_GROUP_NAME"

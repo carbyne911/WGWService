@@ -32,7 +32,7 @@ function download_configurations_from_s3() {
         aws s3 cp s3://carbyne-deployment-conf/wgw-service/dev/deployment$DEPLOYMENT_CONF_VERSION.conf /home/ubuntu --profile ${AWS_CREDENTIALS_PROFILE_NAME}
         aws s3 cp s3://carbyne-deployment-conf/wgw-service/dev/wgw_carbyneapi-dev_com_cert.pem /home/ubuntu
         aws s3 cp s3://carbyne-deployment-conf/wgw-service/dev/wgw_carbyneapi-dev_com_key.pem /home/ubuntu
-    elif [[ "$JANUS_ENV" == "prod" || "$JANUS_ENV" == "gov" ]]; then
+    elif [[ "$JANUS_ENV" == "prod" ]]; then
         aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/deployment$DEPLOYMENT_CONF_VERSION.conf /home/ubuntu
         aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/wgw_carbyneapi_com_cert.pem /home/ubuntu
         aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/wgw_carbyneapi_com_key.pem /home/ubuntu
@@ -43,6 +43,11 @@ function download_configurations_from_s3() {
         aws s3 cp s3://carbyne-deployment-conf/wgw-service/$JANUS_ENV/deployment$DEPLOYMENT_CONF_VERSION.conf /home/ubuntu
         aws s3 cp s3://carbyne-deployment-conf/wgw-service/$JANUS_ENV/wgw_carbyneapi-dev_com_cert.pem /home/ubuntu
         aws s3 cp s3://carbyne-deployment-conf/wgw-service/$JANUS_ENV/wgw_carbyneapi-dev_com_key.pem /home/ubuntu
+    elif [[ "$JANUS_ENV" == "gov" ]]; then
+        echo "[+] downloading Gov files"
+        aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/deployment$DEPLOYMENT_CONF_VERSION.conf /home/ubuntu --region us-gov-west-1
+        aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/wgw_carbyneapi_com_cert.pem /home/ubuntu --region us-gov-west-1
+        aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/wgw_carbyneapi_com_key.pem /home/ubuntu --region us-gov-west-1
     else
         echo "[-] Invalid Configured Environment for WGWService: env=${JANUS_ENV}"
         exit 1
@@ -75,11 +80,24 @@ function update_public_ip_on_route_53() {
         aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }'
 
     elif [[ $JANUS_ENV == "gov" ]]; then
-        aws configure set default.region us-east-1 --profile route53 --region aws-global
-        aws configure set aws_access_key_id $AWS_CREDENTIALS_ACCESS_KEY_ID --profile route53 --region aws-global
-        aws configure set aws_secret_access_key $AWS_CREDENTIALS_SECRET_ACCESS_KEY --profile route53 --region aws-global
-        aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }' --profile route53 --region aws-global
+        AWS_CREDENTIALS_FILE_PATH=/home/ubuntu/prod_account
+        aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/prod_account $AWS_CREDENTIALS_FILE_PATH --region us-gov-west-1
+        echo "creating .aws"
+        mkdir ~/.aws
+        echo "creating credentials file"
+
+        touch ~/.aws/credentials
+        touch ~/.aws/config
+        chmod 777 ~/.aws
+        chmod 777 ~/.aws/*
+
+        echo "$(cat ${AWS_CREDENTIALS_FILE_PATH})" >>~/.aws/credentials
+        echo "printing credentials file"
+        cat ~/.aws/credentials
+        aws configure set default.region us-east-1 --profile default --region aws-global
+        aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }' --profile default --region aws-global
         aws configure set default.region $EC2_REGION
+        rm -f ~/.aws
     else
         echo "[-] Not a valid env value configured, use a proper one from the following - local, feature, dev, qa, stage, prod, gov"
         exit
