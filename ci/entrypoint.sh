@@ -74,12 +74,25 @@ function update_public_ip_on_route_53() {
     if [[ $JANUS_ENV == "prod" || $JANUS_ENV == "stage" || $JANUS_ENV == "qa" || $JANUS_ENV == "dev" || $JANUS_ENV == "feature" ]]; then
         aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }'
 
-    elif [[ $JANUS_ENV == "gov" ]]; then
-        aws configure set default.region us-east-1 --profile route53 --region aws-global
-        aws configure set aws_access_key_id $AWS_CREDENTIALS_ACCESS_KEY_ID --profile route53 --region aws-global
-        aws configure set aws_secret_access_key $AWS_CREDENTIALS_SECRET_ACCESS_KEY --profile route53 --region aws-global
-        aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }' --profile route53 --region aws-global
+     elif [[ $JANUS_ENV == "gov" ]]; then
+        AWS_CREDENTIALS_FILE_PATH=/home/ubuntu/prod_account
+        aws s3 cp s3://carbyne-deployment-conf-prod/wgw-service/prod_account $AWS_CREDENTIALS_FILE_PATH --region us-gov-west-1
+        echo "creating .aws"
+        mkdir ~/.aws
+        echo "creating credentials file"
+
+        touch ~/.aws/credentials
+        touch ~/.aws/config
+        chmod 777 ~/.aws
+        chmod 777 ~/.aws/*
+
+        echo "$(cat ${AWS_CREDENTIALS_FILE_PATH})" >> ~/.aws/credentials
+        echo "printing credentials file"
+        cat ~/.aws/credentials
+        aws configure set default.region us-east-1 --profile default --region aws-global
+        aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }' --profile default --region aws-global
         aws configure set default.region $EC2_REGION
+        rm -f ~/.aws
     else
         echo "[-] Not a valid env value configured, use a proper one from the following - local, feature, dev, qa, stage, prod, gov"
         exit
