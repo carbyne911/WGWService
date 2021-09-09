@@ -97,7 +97,7 @@ function update_public_ip_on_route_53() {
         aws configure set default.region us-east-1 --profile default --region aws-global
         aws route53 change-resource-record-sets --hosted-zone-id $EC2_HOSTED_ZONE --change-batch '{ "Comment": "Testing creating a record set", "Changes": [ { "Action": "UPSERT", "ResourceRecordSet": { "Name":  "'"$EC2_DOMAIN_URL"'", "Type": "A", "TTL":60, "ResourceRecords": [ { "Value": "'"$EC2_PUBLIC_IPV4"'" } ] } } ] }' --profile default --region aws-global
         aws configure set default.region $EC2_REGION
-        rm -f ~/.aws
+        rm -rf ~/.aws
     else
         echo "[-] Not a valid env value configured, use a proper one from the following - local, feature, dev, qa, stage, prod, gov"
         exit
