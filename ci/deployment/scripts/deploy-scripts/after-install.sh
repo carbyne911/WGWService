@@ -12,6 +12,7 @@ declare -A WGW_images=(\
     ["WGWServiceProduction"]=\
     ["WGWServicePreProduction"]=\
     ["WGWServiceProductionGov"]=_gov \
+	["WGWServicePreProductionGov"]=_gov \
 )
 
 if [[ "${IMAGE_TAG}" == "" ]]; then
