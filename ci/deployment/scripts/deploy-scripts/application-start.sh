@@ -16,9 +16,12 @@ declare -A WGW_images=(\
 ["WGWServicePreProduction"]= \
 ["WGWServicePreProductionGov"]=_gov \
 ["WGWServiceProductionGov"]=_gov \
+
 )
 
 ENV_VALUE=$(echo ${WGW_images[$DEPLOYMENT_GROUP_NAME]} | sed 's/_//')
+
+
 
 
 if [[ "${IMAGE_TAG}" == "" ]]; then
@@ -53,12 +56,11 @@ check_group
 
 CONF_VERSION="$(. $(dirname $0)/aws/get-conf-version.sh)"
 
-EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || terminate \"wget instance-id has failed: $?\"`"
+EC2_INSTANCE_ID="$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || terminate \"wget instance-id has failed: $?\")"
 EC2_REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | awk -F\" '{print $4}')
 SGW_APPLICATION_URL=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$EC2_INSTANCE_ID" "Name=key,Values=sgwUrl" --region=$EC2_REGION --output=text | cut -f5)
 WGW_URL=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$EC2_INSTANCE_ID" "Name=key,Values= UrlTag" --region=$EC2_REGION --output=text | cut -f5)
 docker run -dit --rm --net=host \
-$aws_creds_volume \
 --name WGWService \
 -v $WGW_LOG_FILE_PATH:$WGW_LOG_FILE_PATH \
 -e SGW_URL=$SGW_APPLICATION_URL \

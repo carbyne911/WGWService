@@ -1,5 +1,5 @@
 #!/bin/bash
-
+ 
 EC2_PUBLIC_IPV4=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 HEALTH_LOG_PATH=/home/ubuntu/logs/health_log.log
 function get_aws_credentials() {
@@ -322,7 +322,7 @@ function main() {
 
     fi
     echo "[+] Starting WGWContainer..."
-    if [[ "$JANUS_ENV" == "local" || "$JANUS_ENV" == "gov" ]]; then
+    if [[ "$JANUS_ENV" == "local" ]]; then
         if [[ "$AWS_CREDENTIALS_ACCESS_KEY_ID" == -1 || "$AWS_CREDENTIALS_SECRET_ACCESS_KEY" == -1 ]]; then
 
             get_aws_credentials

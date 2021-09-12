@@ -18,6 +18,7 @@ if [[ "${IMAGE_TAG}" == "" ]]; then
     IMAGE_TAG=latest
 fi
 
+
 if [[ "$DEPLOYMENT_GROUP_NAME" == "WGWServiceProduction" || "$DEPLOYMENT_GROUP_NAME" == "WGWServicePreProduction" ]]; then
     DOCKER_REPO=924197678267.dkr.ecr.eu-west-1.amazonaws.com/
     ENV_VALUE="prod"
@@ -37,6 +38,7 @@ function check_group() {
         "$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProduction" && \
         "$DEPLOYMENT_GROUP_NAME" != "WGWServiceProductionGov" && 
         "$DEPLOYMENT_GROUP_NAME" != "WGWServicePreProductionGov" ]]; then
+
         echo "Unknown DEPLOYMENT_GROUP_NAME: $DEPLOYMENT_GROUP_NAME"
         exit 1
     fi
