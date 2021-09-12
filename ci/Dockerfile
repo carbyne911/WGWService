@@ -226,7 +226,7 @@ RUN cd /home/ubuntu/ \
 	&& cd /home/ubuntu/  \
     && rm -rf ./paho.mqtt.c
 
-
+COPY deployment\scripts\deploy-scripts\wgw_version  /home/ubuntu
 # clone wgw code
 RUN cd /home/ubuntu/  \  
    && git clone -b "${WGW_SERVICE_GIT_BRANCH}" --single-branch https://github.com/reporty/WGWService.git \
