@@ -6088,8 +6088,8 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
         if(NULL != gstr->pipeline) {
                 JANUS_LOG(LOG_ERR, "=============  pipelie already exist =====  %s!!!\n", log_string);
          }
-    JANUS_LOG(LOG_INFO, "CARBYNE::Pipeline -%s\n",launch_string);
-	
+  //  JANUS_LOG(LOG_INFO, "CARBYNE::Pipeline -%s\n",launch_string);
+
 	gstr->pipeline = gst_parse_launch(launch_string, &error);
 
 	VERIFY_ELSE_GOTO_CLEANUP(NULL != gstr->pipeline, "Pipeline creation failed could not continue %s\n", log_string);
