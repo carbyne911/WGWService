@@ -6,6 +6,10 @@ ARG WGW_SERVICE_GIT_BRANCH=develop
 ARG GSTREAMER_VERSION=1.18.4
 
 
+
+
+
+
 #environment variables
 ENV JANUS_CERT_PATH=/opt/janus/share/janus/certs
 ENV CERT_PATH=/opt/janus/share/janus/certs/cert.pem
