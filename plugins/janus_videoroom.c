@@ -6009,7 +6009,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 			IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sVIDEO_%s", rtsp_url,room->room_id_str),
 			"rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
 			if(vcodec == JANUS_VIDEOCODEC_VP8) {
-				JANUS_LOG(LOG_INFO, "CARBYNE:::::--shmuel-docker2----------------- JANUS_VIDEOCODEC_VP8 --------------%s\n",log_string);
+				JANUS_LOG(LOG_INFO, "CARBYNE:::::--shmuel-docker3----------------- JANUS_VIDEOCODEC_VP8 --------------%s\n",log_string);
 				// IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
 				// "udpsrc address=127.0.0.1 port=0 name=%s "
 				// " caps=\"application/x-rtp,media=video,encoding-name=VP8\" !"
@@ -6023,7 +6023,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 				" rtpjitterbuffer  name=rtpjitterbufferVideo ! rtpvp8depay name=rtpvp8depayVideo ! vp8dec ! queue max-size-time=10000000 !"
 				" videoscale ! video/x-raw,width=320,height=240 ! videorate ! video/x-raw,framerate=30/1 ! videoconvert ! x264enc !"
 				" rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_UDP location=\"%s\" latency=0",
-                 		UDPSRC_1_ELEMENT_NAME, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
+                 		UDPSRC_1_ELEMENT_NAME/*, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC*/, rtsp_full_url),
 				"launch_string", 0, MAX_STRING_LEN);
 				} else if(vcodec == JANUS_VIDEOCODEC_H264) {
                 		JANUS_LOG(LOG_INFO, "CARBYNE:::::shmuel-docker2-------------- JANUS_VIDEOCODEC_H264 --------------%s\n",log_string);
@@ -6039,7 +6039,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
                 		" caps=\"application/x-rtp,media=video,clock-rate=90000,profile-level-id=42e01f,encoding-name=H264\" !"
                 		" rtph264depay name=rtph264depayVideo ! h264parse name=h264parseVideo ! "
                 		" rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_UDP location=\"%s\" latency=0",
-                		UDPSRC_1_ELEMENT_NAME, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
+                		UDPSRC_1_ELEMENT_NAME,/* GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC,*/ rtsp_full_url),
 				"launch_string", 0, MAX_STRING_LEN); 
 
 			} else if(vcodec == JANUS_VIDEOCODEC_VP9) {
@@ -6088,7 +6088,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
         if(NULL != gstr->pipeline) {
                 JANUS_LOG(LOG_ERR, "=============  pipelie already exist =====  %s!!!\n", log_string);
          }
-  //  JANUS_LOG(LOG_INFO, "CARBYNE::Pipeline -%s\n",launch_string);
+    JANUS_LOG(LOG_INFO, "CARBYNE::Pipeline -%s\n",launch_string);
 
 	gstr->pipeline = gst_parse_launch(launch_string, &error);
 
