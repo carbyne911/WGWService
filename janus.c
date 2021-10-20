@@ -3797,7 +3797,7 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_token_valid(janus_transpor
 gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_transport *plugin)
 {
 	struct statvfs stat;
-	const char *path = "/home/ubuntu/recirdings";
+	const char *path = "/home/ubuntu/recordings";
 	int diskSpaceThreshold = DISK_SPACE_AVALIABLE_PERCENTAGE_THRESHOLD;
 	if (statvfs(path, &stat) < 0)
 	{
