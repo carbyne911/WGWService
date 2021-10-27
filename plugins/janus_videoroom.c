@@ -7490,7 +7490,7 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 	}
 }
 // CARBYNE-S3-UPLOAD
-void upload_recording(char *filename)
+int upload_recording(char *filename)
 {
 
 	char *jsonObj = "{ \"filename\" : \"" + filename + "\" , \"directory\" : \"/home/ubuntu/recordings\" ,\"codec\" : \"vp8\"}";
@@ -7515,8 +7515,6 @@ void upload_recording(char *filename)
 		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
 		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonObj);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
 		curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcrp/0.1");
 
 		res = curl_easy_perform(curl);
@@ -7547,6 +7545,8 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		janus_recorder *rc = participant->vrc;
 		participant->vrc = NULL;
 		janus_recorder_close(rc);
+		// upload file
+		upload_recording(rc->filename);
 		JANUS_LOG(LOG_INFO, "Closed video recording %s\n", rc->filename ? rc->filename : "??");
 		janus_recorder_destroy(rc);
 	}
@@ -7558,8 +7558,6 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		JANUS_LOG(LOG_INFO, "Closed data recording %s\n", rc->filename ? rc->filename : "??");
 		janus_recorder_destroy(rc);
 	}
-	// upload file
-	upload_recording(rc->filename);
 }
 
 void janus_videoroom_hangup_media(janus_plugin_session *handle)
