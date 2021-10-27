@@ -7434,7 +7434,7 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 		if (participant->recording_base)
 		{
 			/* Use the filename and path we have been provided */
-			g_snprintf(filename, 255, "%s-video", participant->recording_base);
+			g_snprintf(filename, 255, "%s-videossssssss", participant->recording_base);
 			rc = janus_recorder_create_full(participant->room->rec_dir,
 											janus_videocodec_name(participant->vcodec), participant->vfmtp, filename);
 			if (rc == NULL)
@@ -7490,6 +7490,7 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 	}
 }
 // CARBYNE-S3-UPLOAD
+
 int upload_recording(char *filename)
 {
 
