@@ -7433,8 +7433,11 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 		memset(filename, 0, 255);
 		if (participant->recording_base)
 		{
+			time_t current_time;
+
+			current_time = time(NULL);
 			/* Use the filename and path we have been provided */
-			g_snprintf(filename, 255, "%s-videossssssss", participant->recording_base);
+			g_snprintf(filename, 255, "%s-video-%s", participant->recording_base,&current_time);
 			rc = janus_recorder_create_full(participant->room->rec_dir,
 											janus_videocodec_name(participant->vcodec), participant->vfmtp, filename);
 			if (rc == NULL)
