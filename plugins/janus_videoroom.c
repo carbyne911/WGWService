@@ -7494,7 +7494,7 @@ int upload_recording(char *filename)
 {
 
 	char *jsonObj;
-	asprintf(&jsonObj, "{ \"filename\" : \"%s\" , \"directory\" : \"/home/ubuntu/recordings\" ,\"codec\" : \"vp8\"}", filename);
+	asprintf(&jsonObj, "{ \"filename\" : \"%s\" , \"directory\" : \"/home/ubuntu/recordings/\" ,\"codec\" : \"vp8\"}", filename);
 	CURL *curl;
 	CURLcode res;
 	char *url = "http://localhost:8080/upload";
