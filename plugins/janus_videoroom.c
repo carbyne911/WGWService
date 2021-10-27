@@ -1166,6 +1166,7 @@ room-<unique room ID>: {
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
 #include <gst/app/gstappsrc.h>
+#include <curl/curl.h>
 /*CARBYNE-GST end*/
 #include "../debug.h"
 #include "../apierror.h"
@@ -1181,7 +1182,6 @@ room-<unique room ID>: {
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <string.h>
-
 /* Plugin information */
 #define JANUS_VIDEOROOM_VERSION 9
 #define JANUS_VIDEOROOM_VERSION_STRING "0.0.9"
