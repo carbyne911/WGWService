@@ -7493,7 +7493,8 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 int upload_recording(char *filename)
 {
 
-	char *jsonObj = "{ \"filename\" : \"" + filename + "\" , \"directory\" : \"/home/ubuntu/recordings\" ,\"codec\" : \"vp8\"}";
+	char *jsonObj;
+	asprintf(&jsonObj, "{ \"filename\" : \"%s\" , \"directory\" : \"/home/ubuntu/recordings\" ,\"codec\" : \"vp8\"}", filename);
 	CURL *curl;
 	CURLcode res;
 	char *url = "http://localhost:8080/upload";
