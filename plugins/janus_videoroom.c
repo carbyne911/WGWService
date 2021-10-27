@@ -7490,13 +7490,13 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 	}
 }
 // CARBYNE-S3-UPLOAD
-static void upload_recording(char *filename)
+void upload_recording(char *filename)
 {
-	
+
 	char *jsonObj = "{ \"filename\" : \"" + filename + "\" , \"directory\" : \"/home/ubuntu/recordings\" ,\"codec\" : \"vp8\"}";
 	CURL *curl;
 	CURLcode res;
-	char* url = "http://localhost:8080/upload";
+	char *url = "http://localhost:8080/upload";
 	/* In windows, this will init the winsock stuff */
 	curl_global_init(CURL_GLOBAL_ALL);
 
