@@ -7394,7 +7394,7 @@ char *get_time_stamp()
 	struct timeval current_time;
 	gettimeofday(&current_time, NULL);
 	char *timestamp;
-	asprintf(&timestamp, "%ld_%ld\n", current_time.tv_sec, current_time.tv_usec);
+	asprintf(&timestamp, "%ld_%ld", current_time.tv_sec, current_time.tv_usec);
 	return timestamp;
 }
 
