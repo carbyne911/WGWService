@@ -1167,7 +1167,7 @@ room-<unique room ID>: {
 #include <gst/app/gstappsink.h>
 #include <gst/app/gstappsrc.h>
 #include <curl/curl.h>
-#include <time.h>
+#include <sys/time.h>
 /*CARBYNE-GST end*/
 #include "../debug.h"
 #include "../apierror.h"
@@ -7391,35 +7391,10 @@ void janus_videoroom_slow_link(janus_plugin_session *handle, int uplink, int vid
 
 char *get_time_stamp()
 {
-	time_t current_time;
-	char *c_time_string;
-
-	/* Obtain current time. */
-	current_time = time(NULL);
-
-	if (current_time == ((time_t)-1))
-	{
-		(void)fprintf(stderr, "Failure to obtain the current time.\n");
-		exit(EXIT_FAILURE);
-	}
-
-	/* Convert to local time format. */
-	c_time_string = ctime(&current_time);
-	// loop through the string to extract all other tokens
-
-	char *timestamp = malloc(strlen(c_time_string));
-	char *token = strtok(c_time_string, " ");
-	while (token != NULL)
-	{
-		strcat(timestamp, "_");
-		strcat(timestamp, token);
-		token = strtok(NULL, " ");
-	}
-	if (c_time_string == NULL)
-	{
-		(void)fprintf(stderr, "Failure to convert the current time.\n");
-		exit(EXIT_FAILURE);
-	}
+	struct timeval current_time;
+	gettimeofday(&current_time, NULL);
+	char *timestamp;
+	asprintf(&timestamp, "%ld_%ld\n", current_time.tv_sec, current_time.tv_usec);
 	return timestamp;
 }
 
@@ -7468,7 +7443,7 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 		memset(filename, 0, 255);
 		if (participant->recording_base)
 		{
-			char* timestamp= get_time_stamp();
+			char *timestamp = get_time_stamp();
 			/* Use the filename and path we have been provided */
 			g_snprintf(filename, 255, "%s-video-%s", participant->recording_base, timestamp);
 			rc = janus_recorder_create_full(participant->room->rec_dir,
