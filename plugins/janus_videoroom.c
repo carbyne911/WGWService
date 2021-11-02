@@ -7558,10 +7558,10 @@ void create_recording_json(char *filename, char *codec)
 	char *jsonObj;
 	asprintf(&jsonObj, "{\n \"filename\" : \"%s\" ,\n \"directory\" : \"/home/ubuntu/recordings/\" ,\n\"codec\" : \"%s\"\n}", filename, codec);
 	char *fullFileName;
-	char* filenameWithotEnding = removeSubstr(filename,".mjr");
-	asprintf(&fullFileName, "/home/ubuntu/recordings/json/%s.json", filenameWithotEnding);
+	removeSubstr(filename,".mjr");
+	asprintf(&fullFileName, "/home/ubuntu/recordings/json/%s.json", filename);
 	FILE *fp;
-	fp = fopen(filename, "w+");
+	fp = fopen(fullFileName, "w+");
 	fputs(jsonObj, fp);
 	fclose(fp);
 }
@@ -7586,7 +7586,7 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		// upload file
 		// upload_recording(rc->filename,rc->codec);
 		// try watch
-		create_recording_json(rc->filename,rc->codec);
+		create_recording_json(rc->filename,rc->codec	);
 		JANUS_LOG(LOG_INFO, "Closed video recording %s\n", rc->filename ? rc->filename : "??");
 		janus_recorder_destroy(rc);
 	}
