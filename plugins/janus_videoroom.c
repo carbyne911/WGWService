@@ -7502,11 +7502,11 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 }
 // CARBYNE-S3-UPLOAD
 
-int upload_recording(char *filename,char* codec)
+int upload_recording(char *filename, char *codec)
 {
 
 	char *jsonObj;
-	asprintf(&jsonObj, "{ \"filename\" : \"%s\" , \"directory\" : \"/home/ubuntu/recordings/\" ,\"codec\" : \"%s\"}", filename,codec);
+	asprintf(&jsonObj, "{ \"filename\" : \"%s\" , \"directory\" : \"/home/ubuntu/recordings/\" ,\"codec\" : \"%s\"}", filename, codec);
 	CURL *curl;
 	CURLcode res;
 	char *url = "http://localhost:8080/upload";
@@ -7542,6 +7542,29 @@ int upload_recording(char *filename,char* codec)
 	curl_global_cleanup();
 	return 0;
 }
+
+void removeSubstr(char *string, char *sub)
+{
+	char *match;
+	int len = strlen(sub);
+	while ((match = strstr(string, sub)))
+	{
+		*match = '\0';
+		strcat(string, match + len);
+	}
+}
+void create_recording_json(char *filename, char *codec)
+{
+	char *jsonObj;
+	asprintf(&jsonObj, "{\n \"filename\" : \"%s\" ,\n \"directory\" : \"/home/ubuntu/recordings/\" ,\n\"codec\" : \"%s\"\n}", filename, codec);
+	char *fullFileName;
+	char* filenameWithotEnding = removeSubstr(filename,".mjr");
+	asprintf(&fullFileName, "/home/ubuntu/recordings/json/%s.json", filenameWithotEnding);
+	FILE *fp;
+	fp = fopen(filename, "w+");
+	fputs(jsonObj, fp);
+	fclose(fp);
+}
 // CARBYNE-S3-UPLOAD-END
 static void janus_videoroom_recorder_close(janus_videoroom_publisher *participant)
 {
@@ -7550,6 +7573,8 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		janus_recorder *rc = participant->arc;
 		participant->arc = NULL;
 		janus_recorder_close(rc);
+		// upload file
+		// upload_recording(rc->filename,rc->codec);
 		JANUS_LOG(LOG_INFO, "Closed audio recording %s\n", rc->filename ? rc->filename : "??");
 		janus_recorder_destroy(rc);
 	}
@@ -7559,7 +7584,9 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		participant->vrc = NULL;
 		janus_recorder_close(rc);
 		// upload file
-		upload_recording(rc->filename,rc->codec);
+		// upload_recording(rc->filename,rc->codec);
+		// try watch
+		create_recording_json(rc->filename,rc->codec);
 		JANUS_LOG(LOG_INFO, "Closed video recording %s\n", rc->filename ? rc->filename : "??");
 		janus_recorder_destroy(rc);
 	}
