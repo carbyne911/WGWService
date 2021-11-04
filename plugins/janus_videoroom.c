@@ -1168,6 +1168,7 @@ room-<unique room ID>: {
 #include <gst/app/gstappsrc.h>
 #include <curl/curl.h>
 #include <sys/time.h>
+#include <stdio.h>
 /*CARBYNE-GST end*/
 #include "../debug.h"
 #include "../apierror.h"
@@ -7408,8 +7409,10 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 		memset(filename, 0, 255);
 		if (participant->recording_base)
 		{
+			char *timestamp = get_time_stamp();
+
 			/* Use the filename and path we have been provided */
-			g_snprintf(filename, 255, "%s-audio", participant->recording_base);
+			g_snprintf(filename, 255, "%s-audio-%s", participant->recording_base,timestamp);
 			rc = janus_recorder_create(participant->room->rec_dir,
 									   janus_audiocodec_name(participant->acodec), filename);
 			if (rc == NULL)
@@ -7543,27 +7546,23 @@ int upload_recording(char *filename, char *codec)
 	return 0;
 }
 
-void removeSubstr(char *string, char *sub)
-{
-	char *match;
-	int len = strlen(sub);
-	while ((match = strstr(string, sub)))
-	{
-		*match = '\0';
-		strcat(string, match + len);
-	}
-}
-void create_recording_json(char *filename, char *codec)
+int create_recording_json(char *filename, char *codec)
 {
 	char *jsonObj;
-	asprintf(&jsonObj, "{\n \"filename\" : \"%s\" ,\n \"directory\" : \"/home/ubuntu/recordings/\" ,\n\"codec\" : \"%s\"\n}", filename, codec);
+	asprintf(&jsonObj, "{\n \"recordingName\" : \"%s\" ,\n \"directory\" : \"/home/ubuntu/recordings/\" ,\n\"codec\" : \"%s\"\n}", filename, codec);
 	char *fullFileName;
-	removeSubstr(filename,".mjr");
-	asprintf(&fullFileName, "/home/ubuntu/recordings/json/%s.json", filename);
+	// removeSubstr(filename,".mjr");
+	asprintf(&fullFileName, "/home/ubuntu/RecJSON/%s.json", filename);
+	printf("[file debug]------%s\n", fullFileName);
 	FILE *fp;
+
 	fp = fopen(fullFileName, "w+");
+
 	fputs(jsonObj, fp);
+
 	fclose(fp);
+
+	return 0;
 }
 // CARBYNE-S3-UPLOAD-END
 static void janus_videoroom_recorder_close(janus_videoroom_publisher *participant)
@@ -7575,6 +7574,11 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		janus_recorder_close(rc);
 		// upload file
 		// upload_recording(rc->filename,rc->codec);
+		printf("[file debug]------calling create_recording_json\n");
+
+		int res = create_recording_json(rc->filename, rc->codec);
+		printf("[file debug]------res = %d\n", res);
+
 		JANUS_LOG(LOG_INFO, "Closed audio recording %s\n", rc->filename ? rc->filename : "??");
 		janus_recorder_destroy(rc);
 	}
@@ -7586,7 +7590,11 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		// upload file
 		// upload_recording(rc->filename,rc->codec);
 		// try watch
-		create_recording_json(rc->filename,rc->codec	);
+		printf("[file debug]------calling create_recording_json\n");
+
+		int res = create_recording_json(rc->filename, rc->codec);
+		printf("[file debug]------res = %d\n", res);
+
 		JANUS_LOG(LOG_INFO, "Closed video recording %s\n", rc->filename ? rc->filename : "??");
 		janus_recorder_destroy(rc);
 	}
