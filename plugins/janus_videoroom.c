@@ -7505,47 +7505,6 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 }
 // CARBYNE-S3-UPLOAD
 
-int upload_recording(char *filename, char *codec)
-{
-
-	char *jsonObj;
-	asprintf(&jsonObj, "{ \"filename\" : \"%s\" , \"directory\" : \"/home/ubuntu/recordings/\" ,\"codec\" : \"%s\"}", filename, codec);
-	CURL *curl;
-	CURLcode res;
-	char *url = "http://localhost:8080/upload";
-	/* In windows, this will init the winsock stuff */
-	curl_global_init(CURL_GLOBAL_ALL);
-
-	/* get a curl handle */
-	curl = curl_easy_init();
-	if (curl)
-	{
-		/* First set the URL that is about to receive our POST. This URL can
-		   just as well be a https:// URL if that is what should receive the
-		   data. */
-		struct curl_slist *headers = NULL;
-		headers = curl_slist_append(headers, "Accept: application/json");
-		headers = curl_slist_append(headers, "Content-Type: application/json");
-		headers = curl_slist_append(headers, "charset: utf-8");
-		curl_easy_setopt(curl, CURLOPT_URL, url);
-		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonObj);
-		curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcrp/0.1");
-
-		res = curl_easy_perform(curl);
-		/* Check for errors */
-		if (res != CURLE_OK)
-			fprintf(stderr, "curl_easy_perform() failed: %s\n",
-					curl_easy_strerror(res));
-
-		/* always cleanup */
-		curl_easy_cleanup(curl);
-	}
-	curl_global_cleanup();
-	return 0;
-}
-
 int create_recording_json(char *filename, char *codec)
 {
 	char *jsonObj;
