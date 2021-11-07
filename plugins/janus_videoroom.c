@@ -7396,7 +7396,9 @@ char *get_time_stamp()
 	gettimeofday(&current_time, NULL);
 	char *timestamp;
 	asprintf(&timestamp, "%ld_%ld", current_time.tv_sec, current_time.tv_usec);
-	return timestamp;
+	if (timestamp != NULL)
+		return timestamp;
+	return NULL
 }
 
 static void janus_videoroom_recorder_create(janus_videoroom_publisher *participant, gboolean audio, gboolean video, gboolean data)
@@ -7410,9 +7412,16 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 		if (participant->recording_base)
 		{
 			char *timestamp = get_time_stamp();
-
+			if (timestamp == NULL)
+			{
+				JANUS_LOG(LOG_ERR, "timestamp Null\n");
+				g_snprintf(filename, 255, "%s-audio", participant->recording_base);
+			}
+			else
+			{
+				g_snprintf(filename, 255, "%s-audio-%s", participant->recording_base, timestamp);
+			}
 			/* Use the filename and path we have been provided */
-			g_snprintf(filename, 255, "%s-audio-%s", participant->recording_base,timestamp);
 			rc = janus_recorder_create(participant->room->rec_dir,
 									   janus_audiocodec_name(participant->acodec), filename);
 			if (rc == NULL)
@@ -7422,6 +7431,7 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 		}
 		else
 		{
+
 			/* Build a filename */
 			g_snprintf(filename, 255, "videoroom-%s-user-%s-%" SCNi64 "-audio",
 					   participant->room_id_str, participant->user_id_str, now);
@@ -7447,8 +7457,16 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 		if (participant->recording_base)
 		{
 			char *timestamp = get_time_stamp();
-			/* Use the filename and path we have been provided */
-			g_snprintf(filename, 255, "%s-video-%s", participant->recording_base, timestamp);
+			if (timestamp == NULL)
+			{
+				JANUS_LOG(LOG_ERR, "timestamp Null\n");
+				g_snprintf(filename, 255, "%s-video", participant->recording_base);
+			}
+			else
+			{
+				/* Use the filename and path we have been provided */
+				g_snprintf(filename, 255, "%s-video-%s", participant->recording_base, timestamp);
+			}
 			rc = janus_recorder_create_full(participant->room->rec_dir,
 											janus_videocodec_name(participant->vcodec), participant->vfmtp, filename);
 			if (rc == NULL)
@@ -7504,23 +7522,48 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 	}
 }
 // CARBYNE-S3-UPLOAD
-
+#define RECORDINGS_PATH "/home/ubuntu/recordings/"
+#define REC_JSON "{\n \"recordingName\" : \"%s\" ,\n \"directory\" : \"%s\" ,\n\"codec\" : \"%s\"\n}"
+#define REC_JSON_PATH "/home/ubuntu/RecJSON/%s.json"
+int validate_file_name(char *filename)
+{
+	char bad_chars[] = "!@%^*~|";
+	char invalid_found = FALSE;
+	int i;
+	for (i = 0; i < strlen(bad_chars); ++i)
+	{
+		if (strchr(filename, bad_chars[i]) != NULL)
+		{
+			invalid_found = TRUE;
+			break;
+		}
+	}
+	if (invalid_found)
+	{
+		JANUS_LOG(LOG_ERR, "Invalid file name");
+		return 1;
+	}
+	return 0;
+}
 int create_recording_json(char *filename, char *codec)
 {
 	char *jsonObj;
-	asprintf(&jsonObj, "{\n \"recordingName\" : \"%s\" ,\n \"directory\" : \"/home/ubuntu/recordings/\" ,\n\"codec\" : \"%s\"\n}", filename, codec);
+	asprintf(&jsonObj, REC_JSON, filename, RECORDINGS_PATH, codec);
 	char *fullFileName;
-	// removeSubstr(filename,".mjr");
-	asprintf(&fullFileName, "/home/ubuntu/RecJSON/%s.json", filename);
-	printf("[file debug]------%s\n", fullFileName);
-	FILE *fp;
-
-	fp = fopen(fullFileName, "w+");
-
-	fputs(jsonObj, fp);
-
-	fclose(fp);
-
+	asprintf(&fullFileName, REC_JSON_PATH, filename);
+	if (validate_file_name(fullFileName) == 1)
+	{
+		JANUS_LOG(LOG_ERR, "Invalid file name wont be used");
+		return 1;
+	}
+	else
+	{
+		printf("[file debug]------%s\n", fullFileName);
+		FILE *fp;
+		fp = fopen(fullFileName, "w+");
+		fputs(jsonObj, fp);
+		fclose(fp);
+	}
 	return 0;
 }
 // CARBYNE-S3-UPLOAD-END
@@ -7531,8 +7574,6 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		janus_recorder *rc = participant->arc;
 		participant->arc = NULL;
 		janus_recorder_close(rc);
-		// upload file
-		// upload_recording(rc->filename,rc->codec);
 		printf("[file debug]------calling create_recording_json\n");
 
 		int res = create_recording_json(rc->filename, rc->codec);
@@ -7546,9 +7587,6 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		janus_recorder *rc = participant->vrc;
 		participant->vrc = NULL;
 		janus_recorder_close(rc);
-		// upload file
-		// upload_recording(rc->filename,rc->codec);
-		// try watch
 		printf("[file debug]------calling create_recording_json\n");
 
 		int res = create_recording_json(rc->filename, rc->codec);
