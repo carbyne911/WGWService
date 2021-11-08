@@ -7523,33 +7523,13 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 #define RECORDINGS_PATH "/home/ubuntu/recordings/"
 #define REC_JSON "{\n \"recordingName\" : \"%s\" ,\n \"directory\" : \"%s\" ,\n\"codec\" : \"%s\"\n}"
 #define REC_JSON_PATH "/home/ubuntu/RecJSON/%s.json"
-int validate_file_name(char *filename)
-{
-	char bad_chars[] = "!@%^*~|";
-	char invalid_found = FALSE;
-	int i;
-	for (i = 0; i < strlen(bad_chars); ++i)
-	{
-		if (strchr(filename, bad_chars[i]) != NULL)
-		{
-			invalid_found = TRUE;
-			break;
-		}
-	}
-	if (invalid_found)
-	{
-		JANUS_LOG(LOG_ERR, "Invalid file name");
-		return 1;
-	}
-	return 0;
-}
 int create_recording_json(char *filename, char *codec)
 {
-	char *jsonObj;
+	char *jsonObj = NULL;
 	asprintf(&jsonObj, REC_JSON, filename, RECORDINGS_PATH, codec);
-	char *fullFileName;
+	char *fullFileName = NULL;
 	asprintf(&fullFileName, REC_JSON_PATH, filename);
-	if (validate_file_name(fullFileName) == 1)
+	if (fullFileName == NULL)
 	{
 		JANUS_LOG(LOG_ERR, "Invalid file name wont be used");
 		return 1;
