@@ -7392,13 +7392,11 @@ void janus_videoroom_slow_link(janus_plugin_session *handle, int uplink, int vid
 
 char *get_time_stamp()
 {
-	struct timeval current_time;
+	struct timeval current_time = {0};
 	gettimeofday(&current_time, NULL);
-	char *timestamp;
+	char *timestamp = NULL;
 	asprintf(&timestamp, "%ld_%ld", current_time.tv_sec, current_time.tv_usec);
-	if (timestamp != NULL)
-		return timestamp;
-	return NULL
+	return timestamp;
 }
 
 static void janus_videoroom_recorder_create(janus_videoroom_publisher *participant, gboolean audio, gboolean video, gboolean data)
