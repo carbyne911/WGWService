@@ -6613,6 +6613,21 @@ static gboolean busCall(GstBus *bus, GstMessage *bus_msg, GMainLoop *loop)
 			}
 			break;
 		}
+		case GST_MESSAGE_WARNING:
+			gst_message_parse_warning(bus_msg, &bus_warn, &bus_debug_info);
+
+			JANUS_LOG(LOG_WARN, "CARBYNE:: Got GST BUS  WARNING received from element %s: %d (%s) ...\n", GST_OBJECT_NAME(bus_msg->src), bus_warn->code, bus_warn->message ? bus_warn->message : "??");
+			JANUS_LOG(LOG_WARN, "CARBYNE:: GST BUS Debugging information: %s\n", bus_debug_info ? bus_debug_info : "none");
+			int warning_code = bus_warn->code;
+			if (warning_code == GST_RTSP_CLIENT_SINK_ERROR_CODE)
+			{
+				JANUS_LOG(LOG_WARN, "CARBYNE:: GST_RTSP_CLIENT_SINK_ERROR_CODE ----");
+				rtspServerConnection = 1;
+			}
+
+			g_clear_error(&bus_warn);
+			g_free(bus_debug_info);
+			break;
 		default:
 			JANUS_LOG(LOG_VERB, "CARBYNE::GST BUS Unexpected message received.\n");
 			break;
