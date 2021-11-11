@@ -6568,6 +6568,7 @@ static gboolean busCall(GstBus *bus, GstMessage *bus_msg, GMainLoop *loop)
 {
 	GError *bus_warn;
 	GError *bus_err;
+	GError *bus_err;
 	gchar *bus_debug_info;
 	if (bus_msg != NULL)
 	{
