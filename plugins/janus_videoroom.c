@@ -6559,9 +6559,11 @@ void janus_videoroom_incoming_rtp(janus_plugin_session *handle, janus_plugin_rtp
 }
 
 /*CARBYNE-GST*/
-#define GST_WAIT_TIMEOUT_FROM_IDLE_TO_PLAY_NSEC 500000000 // 0.5s
-#define GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC 5000000		  // 5s
-
+#define GST_WAIT_TIMEOUT_FROM_IDLE_TO_PLAY_NSEC 500000000	   //0.5s
+#define GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC 5000000			   //5s
+#define GST_RTSP_CLIENT_SINK_ERROR_CODE 9					   //
+#define GST_RTSP_CLIENT_SINK_ERROR_CODE_UNAUTHORIZED 15		   //
+#define GST_RTSP_CLIENT_SINK_ERROR_CODE_CONNECTION_CLOSED 2287 //
 static gboolean busCall(GstBus *bus, GstMessage *bus_msg, GMainLoop *loop)
 {
 	GError *bus_err;
