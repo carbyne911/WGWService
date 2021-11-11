@@ -6567,6 +6567,7 @@ void janus_videoroom_incoming_rtp(janus_plugin_session *handle, janus_plugin_rtp
 static gboolean busCall(GstBus *bus, GstMessage *bus_msg, GMainLoop *loop)
 {
 	GError *bus_err;
+	GError *bus_err;
 	gchar *bus_debug_info;
 	if (bus_msg != NULL)
 	{
