@@ -6624,7 +6624,7 @@ static gboolean busCall(GstBus *bus, GstMessage *bus_msg, GMainLoop *loop)
 			if (warning_code == GST_RTSP_CLIENT_SINK_ERROR_CODE)
 			{
 				JANUS_LOG(LOG_WARN, "CARBYNE:: GST_RTSP_CLIENT_SINK_ERROR_CODE ----");
-				rtspServerConnection = 1;
+				// rtspServerConnection = 1;
 			}
 
 			g_clear_error(&bus_warn);
