@@ -6803,7 +6803,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
  			   IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
 				"udpsrc address=127.0.0.1 port=0 name=%s "
 				" caps=\"application/x-rtp,media=video,encoding-name=VP8\" !"
-				" rtpjitterbuffer name=rtpjitterbufferVideo ! rtpvp8depay name=rtpvp8depayVideo ! webmmux ! filesink location=newfile.webm",
+				" rtpjitterbuffer name=rtpjitterbufferVideo ! rtpvp8depay name=rtpvp8depayVideo wait-for-keyframe=true ! webmmux ! filesink location=newfile.webm",
            		UDPSRC_1_ELEMENT_NAME/*, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC*//*, rtsp_full_url*/),
 				"launch_string", 0, MAX_STRING_LEN);
 
