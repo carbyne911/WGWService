@@ -7603,7 +7603,7 @@ int deadlock()
 }
 void janus_videoroom_hangup_media(janus_plugin_session *handle)
 {
-	deadlock()
+	deadlock();
 	guint64 room_id = 0;
 	char *room_id_str = NULL;
 	JANUS_LOG(LOG_INFO, "[%s-%p] No WebRTC media anymore; %p %p\n", JANUS_VIDEOROOM_PACKAGE, handle, handle->gateway_handle, handle->plugin_handle);
