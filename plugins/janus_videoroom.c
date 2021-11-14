@@ -7584,6 +7584,9 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		janus_recorder_destroy(rc);
 	}
 }
+pthread_mutex_t first_mutex; // mutex lock
+pthread_mutex_t second_mutex;
+
 void *function1(){
 	  pthread_mutex_lock(&first_mutex);  // to acquire the resource/mutex lock
      printf("Thread ONE acquired first_mutex\n");
@@ -7606,8 +7609,6 @@ void *function2(){
      pthread_mutex_unlock(&second_mutex);
      printf("Thread TWO released second_mutex\n");
 }
-pthread_mutex_t first_mutex; // mutex lock
-pthread_mutex_t second_mutex;
 
 int deadlock()
 {
