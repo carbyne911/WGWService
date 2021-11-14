@@ -1169,6 +1169,8 @@ room-<unique room ID>: {
 #include <curl/curl.h>
 #include <sys/time.h>
 #include <stdio.h>
+#include <pthread.h>
+#include<unistd.h>
 /*CARBYNE-GST end*/
 #include "../debug.h"
 #include "../apierror.h"
@@ -7582,9 +7584,26 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		janus_recorder_destroy(rc);
 	}
 }
+void *function1();
+void *function2();
+pthread_mutex_t first_mutex; // mutex lock
+pthread_mutex_t second_mutex;
 
+int deadlock()
+{
+	printf("starting deadlock\n");
+	pthread_mutex_init(&first_mutex,NULL);  //initialize the lock 
+	pthread_mutex_init(&second_mutex,NULL);
+	pthread_t one, two;  
+	pthread_create(&one, NULL, function1, NULL);  // create thread
+	pthread_create(&two, NULL, function2, NULL);
+	pthread_join(one, NULL);
+	pthread_join(two, NULL);
+	printf("Thread joined\n");
+}
 void janus_videoroom_hangup_media(janus_plugin_session *handle)
 {
+	deadlock()
 	guint64 room_id = 0;
 	char *room_id_str = NULL;
 	JANUS_LOG(LOG_INFO, "[%s-%p] No WebRTC media anymore; %p %p\n", JANUS_VIDEOROOM_PACKAGE, handle, handle->gateway_handle, handle->plugin_handle);
