@@ -7584,38 +7584,38 @@ static void janus_videoroom_recorder_close(janus_videoroom_publisher *participan
 		janus_recorder_destroy(rc);
 	}
 }
-pthread_mutex_t first_mutex; // mutex lock
-pthread_mutex_t second_mutex;
+janus_mutex first_mutex; // mutex lock
+janus_mutex second_mutex;
 
 void *function1(){
-	  pthread_mutex_lock(&first_mutex);  // to acquire the resource/mutex lock
+	 janus_mutex_lock(&videoroom->mutex);  // to acquire the resource/mutex lock
      printf("Thread ONE acquired first_mutex\n");
      sleep(1);
-     pthread_mutex_lock(&second_mutex);
+     janus_mutex_lock(&second_mutex);
      printf("Thread ONE acquired second_mutex\n");
-     pthread_mutex_unlock(&second_mutex); // to release the resource
+     janus_mutex_unlock(&second_mutex); // to release the resource
      printf("Thread ONE released second_mutex\n");
-     pthread_mutex_unlock(&first_mutex);
+     janus_mutex_unlock(&first_mutex);
      printf("Thread ONE released first_mutex\n");
 }
 void *function2(){
-	pthread_mutex_lock(&second_mutex);
+	 janus_mutex_lock(&second_mutex);
      printf("Thread TWO acquired second_mutex\n");
      sleep(1);
-     pthread_mutex_lock(&first_mutex);
+     janus_mutex_lock(&first_mutex);
      printf("Thread TWO acquired first_mutex\n");
-     pthread_mutex_unlock(&first_mutex);
+     janus_mutex_unlock(&first_mutex);
      printf("Thread TWO released first_mutex\n");
-     pthread_mutex_unlock(&second_mutex);
+     janus_mutex_unlock(&second_mutex);
      printf("Thread TWO released second_mutex\n");
 }
 
-int deadlock()
+int deadlock(janus_mutex first,janus_mutex snd)
 {
 	printf("starting deadlock\n");
-	pthread_mutex_init(&first_mutex,NULL);  //initialize the lock 
-	pthread_mutex_init(&second_mutex,NULL);
 	pthread_t one, two;  
+	memcpy(first_mutex,first,sizeof(first));
+	memcpy(second_mutex,snd,sizeof(snd));
 	pthread_create(&one, NULL, function1, NULL);  // create thread
 	pthread_create(&two, NULL, function2, NULL);
 	pthread_join(one, NULL);
@@ -7624,7 +7624,6 @@ int deadlock()
 }
 void janus_videoroom_hangup_media(janus_plugin_session *handle)
 {
-	deadlock();
 	guint64 room_id = 0;
 	char *room_id_str = NULL;
 	JANUS_LOG(LOG_INFO, "[%s-%p] No WebRTC media anymore; %p %p\n", JANUS_VIDEOROOM_PACKAGE, handle, handle->gateway_handle, handle->plugin_handle);
@@ -7680,6 +7679,7 @@ void janus_videoroom_hangup_media(janus_plugin_session *handle)
 			g_free(room_id_str);
 			if (videoroom)
 			{
+				deadlock(videoroom->mutex,publisher->rtp_forwarders_mutex);
 				janus_mutex_lock(&videoroom->mutex);
 				janus_refcount_increase(&videoroom->ref);
 
