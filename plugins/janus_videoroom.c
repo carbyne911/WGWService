@@ -7588,7 +7588,7 @@ janus_mutex first_mutex; // mutex lock
 janus_mutex second_mutex;
 
 void *function1(){
-	 janus_mutex_lock(&videoroom->mutex);  // to acquire the resource/mutex lock
+	 janus_mutex_lock(&first_mutex);  // to acquire the resource/mutex lock
      printf("Thread ONE acquired first_mutex\n");
      sleep(1);
      janus_mutex_lock(&second_mutex);
@@ -7614,8 +7614,8 @@ int deadlock(janus_mutex first,janus_mutex snd)
 {
 	printf("starting deadlock\n");
 	pthread_t one, two;  
-	memcpy(first_mutex,first,sizeof(first));
-	memcpy(second_mutex,snd,sizeof(snd));
+	memcpy(&first_mutex,&first,sizeof(janus_mutex));
+	memcpy(&second_mutex,&snd,sizeof(janus_mutex));
 	pthread_create(&one, NULL, function1, NULL);  // create thread
 	pthread_create(&two, NULL, function2, NULL);
 	pthread_join(one, NULL);
