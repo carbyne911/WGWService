@@ -3373,6 +3373,21 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
   	   	JANUS_LOG(LOG_ERR, "Available Disk for path:%s  precent %ld is less than threshold:%d \n",path,precent, diskSpaceThreshold);  
   	   	return FALSE;
   	}
+
+	//checking if VideoRoom is Available
+	FILE *videoRoomStatusFile;
+	videoRoomStatusFile = fopen('/home/ubuntu/video-room-status', "r");
+	if(videoRoomStatusFile){
+		fseek(videoRoomStatusFile, 0, SEEK_END);
+		long fsize = ftell(videoRoomStatusFile);
+		fseek(videoRoomStatusFile, 0, SEEK_SET);  /* same as rewind(f); */
+		char *string = malloc(fsize + 1);
+		fread(string, 1, fsize, videoRoomStatusFile);
+		fclose(videoRoomStatusFile);
+		string[fsize] = 0;
+		JANUS_LOG(LOG_INFO,"-----------------VIDEOROOM------------- %s ",string);
+	}
+	
   	return TRUE;
 }
 /* CARBYNE-SHC end */
