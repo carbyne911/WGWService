@@ -42,6 +42,9 @@
 #include "events.h"
 /* CARBYNE-SHC start */
 #include <sys/statvfs.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 /* CARBYNE-SHC end */
 
 #define JANUS_NAME				"Janus WebRTC Server"
@@ -3376,18 +3379,19 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 
 	//checking if VideoRoom is Available
 	FILE *videoRoomStatusFile;
-	videoRoomStatusFile = fopen('/home/ubuntu/video-room-status', "r");
-	if(videoRoomStatusFile){
-		fseek(videoRoomStatusFile, 0, SEEK_END);
-		long fsize = ftell(videoRoomStatusFile);
-		fseek(videoRoomStatusFile, 0, SEEK_SET);  /* same as rewind(f); */
-		char *string = malloc(fsize + 1);
-		fread(string, 1, fsize, videoRoomStatusFile);
-		fclose(videoRoomStatusFile);
-		string[fsize] = 0;
-		JANUS_LOG(LOG_INFO,"-----------------VIDEOROOM------------- %s ",string);
-	}
-	
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+	videoRoomStatusFile = fopen("/home/ubuntu/video-room-status", "r");
+	if (videoRoomStatusFile == NULL)
+    		return FALSE;
+	while ((read = getline(&line, &len, videoRoomStatusFile)) != -1) {
+	    if(strstr(line,"false")!=NULL){
+			JANUS_LOG(LOG_ERR,"%s\n",line);
+			return FALSE;
+        }
+    }
+
   	return TRUE;
 }
 /* CARBYNE-SHC end */
