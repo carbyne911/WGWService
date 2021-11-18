@@ -1169,8 +1169,6 @@ room-<unique room ID>: {
 #include <curl/curl.h>
 #include <sys/time.h>
 #include <stdio.h>
-#include <pthread.h>
-#include<unistd.h>
 /*CARBYNE-GST end*/
 #include "../debug.h"
 #include "../apierror.h"

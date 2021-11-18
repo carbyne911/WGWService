@@ -3378,7 +3378,7 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
   	}
 
 	//checking if VideoRoom is Available
-	FILE *videoRoomStatusFile;
+	FILE *videoRoomStatusFile = NULL;
     char * line = NULL;
     size_t len = 0;
     ssize_t read;
@@ -3386,7 +3386,7 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 	if (videoRoomStatusFile == NULL)
     		return FALSE;
 	while ((read = getline(&line, &len, videoRoomStatusFile)) != -1) {
-	    if(strstr(line,"false")!=NULL){
+	    if(strstr(line,"true") == NULL){
 			JANUS_LOG(LOG_ERR,"%s\n",line);
 			return FALSE;
         }
