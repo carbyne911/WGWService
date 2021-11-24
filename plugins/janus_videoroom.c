@@ -5515,7 +5515,8 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 						{
 							/* We've started recording, send a PLI/FIR and go on */
 							janus_videoroom_recorder_create(
-								participant, strstr(participant->sdp, "m=audio") != NULL,
+								participant, 
+								strstr(participant->sdp, "m=audio") != NULL,
 								strstr(participant->sdp, "m=video") != NULL,
 								strstr(participant->sdp, "m=application") != NULL);
 							if (strstr(participant->sdp, "m=video"))
@@ -7398,9 +7399,11 @@ char *get_time_stamp()
 	asprintf(&timestamp, "%ld_%ld", current_time.tv_sec, current_time.tv_usec);
 	return timestamp;
 }
+#define RECORDINGS_PATH "/home/ubuntu/recordings/"
 
 static void janus_videoroom_recorder_create(janus_videoroom_publisher *participant, gboolean audio, gboolean video, gboolean data)
 {
+	asprintf(&participant->recording_base, "%s%s",RECORDINGS_PATH, participant->room_id_str);// setting the recording location with room name
 	char filename[255];
 	janus_recorder *rc = NULL;
 	gint64 now = janus_get_real_time();
@@ -7520,7 +7523,6 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 	}
 }
 // CARBYNE-S3-UPLOAD
-#define RECORDINGS_PATH "/home/ubuntu/recordings/"
 #define REC_JSON "{\n \"recordingName\" : \"%s\" ,\n \"directory\" : \"%s\" ,\n\"codec\" : \"%s\"\n}"
 #define REC_JSON_PATH "/home/ubuntu/RecJSON/%s.json"
 int create_recording_json(char *filename, char *codec)
@@ -9970,9 +9972,9 @@ static void *janus_videoroom_handler(void *data)
 												 JANUS_SDP_OA_DONE);
 				/* Is this room recorded, or are we recording this publisher already? */
 				janus_mutex_lock(&participant->rec_mutex);
+				participant->recording_active = TRUE;
 				if (videoroom->record || participant->recording_active)
 				{
-					participant->recording_active = TRUE;
 					janus_videoroom_recorder_create(participant, participant->audio, participant->video, participant->data);
 				}
 				janus_mutex_unlock(&participant->rec_mutex);
