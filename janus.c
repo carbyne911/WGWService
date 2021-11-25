@@ -3383,8 +3383,10 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
     size_t len = 0;
     ssize_t read;
 	videoRoomStatusFile = fopen("/home/ubuntu/video-room-status", "r");
-	if (videoRoomStatusFile == NULL)
+	if (videoRoomStatusFile == NULL){
+			JANUS_LOG(LOG_ERR,"Failed opening file\n");
     		return FALSE;
+	}
 	while ((read = getline(&line, &len, videoRoomStatusFile)) != -1) {
 	    if(strstr(line,"true") == NULL){
 			JANUS_LOG(LOG_ERR,"%s\n",line);
