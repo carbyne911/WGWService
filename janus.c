@@ -51,6 +51,7 @@
 #define JANUS_AUTHOR			"Meetecho s.r.l."
 #define JANUS_SERVER_NAME		"MyJanusInstance"
 #define DISK_SPACE_AVALIABLE_PERCENTAGE_THRESHOLD 10 /* CARBYNE-SHC */
+#define RAM_PERCENTAGE_THRESHOLD 70 /* CARBYNE-SHC */
 #ifdef __MACH__
 #define SHLIB_EXT "0.dylib"
 #else
@@ -3360,6 +3361,25 @@ gboolean janus_transport_is_auth_token_valid(janus_transport *plugin, const char
 gboolean carbyne_janus_transport_is_sanityhealthcheck_token_valid(janus_transport *plugin, const char *token) {
     return token && carbyne_janus_auth_sanityhealthcheck_signature(token);
 }
+long* getLong(char *str)
+{
+    char *p = str;
+    long val;
+    float arr[10];
+    while (*p)
+    {
+        if (isdigit(*p))
+        {
+            long val = strtol(p, &p, 10);
+            return val;
+        }
+        else
+        {
+            p++;
+        }
+    }
+}
+
 
 gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_transport *plugin) {
   	struct statvfs stat;
@@ -3395,8 +3415,41 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
         }
     }
 	fclose(videoRoomStatusFile);
+
+	//checking RAM usage
+	FILE *meminfo = NULL;
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    long mem[3];
+    meminfo = fopen("/proc/meminfo", "r");
+    if (meminfo == NULL)
+    {
+        printf("Failed opening file\n");
+        return 0;
+    }
+    int index = 0;
+    while ((read = getline(&line, &len, meminfo)) != -1)
+    {
+
+        if (strstr(line, "Mem") != NULL && index < 3)
+        {
+            mem[index] = getLong(line);
+            printf("%ld\n",mem[index]);
+            index++;
+        }
+    }
+    fclose(meminfo);
+
+    int percentageFree = mem[2] * 100 / mem[0];
+    int percentageTaken = (mem[0]-mem[2]) * 100 / mem[0];
+	if(percentageTaken > RAM_PERCENTAGE_THRESHOLD){
+		JANUS_LOG(LOG_ERR,"%d < %d memory usage past threshold ",RAM_PERCENTAGE_THRESHOLD,percentageTaken)
+	}
+
   	return TRUE;
 }
+
 /* CARBYNE-SHC end */
 
 void janus_transport_notify_event(janus_transport *plugin, void *transport, json_t *event) {
