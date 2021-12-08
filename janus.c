@@ -3420,22 +3420,20 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 	FILE *meminfo = NULL;
     char *line = NULL;
     size_t len = 0;
-    ssize_t read;
+    ssize_t read = 0 ;
     long mem[3];
     meminfo = fopen("/proc/meminfo", "r");
     if (meminfo == NULL)
     {
-        printf("Failed opening file\n");
+        JANUS_LOG(LOG_ERR,"Failed opening file\n");
         return 0;
     }
     int index = 0;
     while ((read = getline(&line, &len, meminfo)) != -1)
     {
-
         if (strstr(line, "Mem") != NULL && index < 3)
         {
             mem[index] = getLong(line);
-            printf("%ld\n",mem[index]);
             index++;
         }
     }
@@ -3444,7 +3442,8 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
     int percentageFree = mem[2] * 100 / mem[0];
     int percentageTaken = (mem[0]-mem[2]) * 100 / mem[0];
 	if(percentageTaken > RAM_PERCENTAGE_THRESHOLD){
-		JANUS_LOG(LOG_ERR,"%d < %d memory usage past threshold ",RAM_PERCENTAGE_THRESHOLD,percentageTaken)
+		JANUS_LOG(LOG_ERR,"%d < %d memory usage past threshold ",RAM_PERCENTAGE_THRESHOLD,percentageTaken);
+		return FALSE;
 	}
 
   	return TRUE;
