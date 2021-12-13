@@ -3379,8 +3379,8 @@ long* getLong(char *str)
         }
     }
 }
-
-
+#define MEM_INFO "/proc/meminfo"
+long totalMemory=0,totalMemoryAfterThreshold=0;
 gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_transport *plugin) {
   	struct statvfs stat;
   	const char* path="/";
@@ -3421,28 +3421,32 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
     char *line = NULL;
     size_t len = 0;
     ssize_t read = 0 ;
-    long mem[3];
-    meminfo = fopen("/proc/meminfo", "r");
+   long availableMemory=0;
+    meminfo = fopen(MEM_INFO, "r");
     if (meminfo == NULL)
     {
-        JANUS_LOG(LOG_ERR,"Failed opening file\n");
-        return 0;
+        JANUS_LOG(LOG_ERR,"Failed opening %s file!\n",MEM_INFO);
+        return FALSE;
     }
-    int index = 0;
     while ((read = getline(&line, &len, meminfo)) != -1)
     {
-        if (strstr(line, "Mem") != NULL && index < 3)
-        {
-            mem[index] = getLong(line);
-            index++;
-        }
+		if(line != NULL){
+        	
+			if(strstr(line, "MemTotal") != NULL && totalMemory == 0) {
+					totalMemory = getLong(line);
+					totalMemoryAfterThreshold = totalMemory * RAM_PERCENTAGE_THRESHOLD / 100;
+					if(totalMemoryAfterThreshold == 0){
+						JANUS_LOG(LOG_ERR,"no system memory!\n",MEM_INFO);
+						return FALSE;
+					}
+				}
+			if(strstr(line, "MemAvailable") != NULL) availableMemory = getLong(line);
+		}
     }
     fclose(meminfo);
-
-    int percentageFree = mem[2] * 100 / mem[0];
-    int percentageTaken = (mem[0]-mem[2]) * 100 / mem[0];
-	if(percentageTaken > RAM_PERCENTAGE_THRESHOLD){
-		JANUS_LOG(LOG_ERR,"%d < %d memory usage past threshold ",RAM_PERCENTAGE_THRESHOLD,percentageTaken);
+    int memoryUsage = (totalMemory-availableMemory);
+	if(memoryUsage > totalMemoryAfterThreshold){
+		JANUS_LOG(LOG_ERR,"%d < %d memory usage past threshold!",totalMemoryAfterThreshold,memoryUsage);
 		return FALSE;
 	}
 
