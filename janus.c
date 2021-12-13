@@ -3364,20 +3364,26 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_token_valid(janus_transpor
 long* getLong(char *str)
 {
     char *p = str;
-    long val;
-    float arr[10];
-    while (*p)
-    {
-        if (isdigit(*p))
-        {
-            long val = strtol(p, &p, 10);
-            return val;
-        }
-        else
-        {
-            p++;
-        }
-    }
+	if(p==NULL) {
+		JANUS_LOG(LOG_ERR,"Memory String is NULL!");
+		return FALSE;
+	}
+    while (p && *p != 0)
+    	{
+    	    if (isdigit(*p))
+    	    {
+    	        long val = strtol(p, &p, 10);
+				if(val == 0){
+					JANUS_LOG(LOG_ERR,"Memory String to long conversion faild with value of zero!");
+				}
+    	        return val;
+    	    }
+    	    else
+    	    {
+    	        p++;
+    	    }
+    	}
+	return FALSE;
 }
 #define MEM_INFO "/proc/meminfo"
 long totalMemory=0,totalMemoryAfterThreshold=0;
@@ -3418,35 +3424,40 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 
 	//checking RAM usage
 	FILE *meminfo = NULL;
-    char *line = NULL;
-    size_t len = 0;
-    ssize_t read = 0 ;
-   long availableMemory=0;
+    char *lineMem = NULL;
+    size_t lenMem = 0;
+    ssize_t readMem = 0 ;
+    long availableMemory=0;
     meminfo = fopen(MEM_INFO, "r");
     if (meminfo == NULL)
     {
         JANUS_LOG(LOG_ERR,"Failed opening %s file!\n",MEM_INFO);
         return FALSE;
     }
-    while ((read = getline(&line, &len, meminfo)) != -1)
+    while ((readMem = getline(&lineMem, &lenMem, meminfo)) != -1)
     {
-		if(line != NULL){
+		if(lineMem != NULL){
         	
-			if(strstr(line, "MemTotal") != NULL && totalMemory == 0) {
-					totalMemory = getLong(line);
+			if(totalMemory == 0 && strstr(lineMem, "MemTotal") != NULL) {
+					totalMemory = getLong(lineMem);
 					totalMemoryAfterThreshold = totalMemory * RAM_PERCENTAGE_THRESHOLD / 100;
 					if(totalMemoryAfterThreshold == 0){
-						JANUS_LOG(LOG_ERR,"no system memory!\n",MEM_INFO);
+						JANUS_LOG(LOG_ERR,"no system memory!\n");
 						return FALSE;
 					}
 				}
-			if(strstr(line, "MemAvailable") != NULL) availableMemory = getLong(line);
+			if(strstr(lineMem, "MemAvailable") != NULL) availableMemory = getLong(lineMem);
 		}
     }
     fclose(meminfo);
+
+	if(availableMemory == 0){
+			JANUS_LOG(LOG_ERR,"no Available memory!\n");
+			return FALSE;
+	}
     int memoryUsage = (totalMemory-availableMemory);
 	if(memoryUsage > totalMemoryAfterThreshold){
-		JANUS_LOG(LOG_ERR,"%d < %d memory usage past threshold!",totalMemoryAfterThreshold,memoryUsage);
+		JANUS_LOG(LOG_ERR,"%ld < %d memory usage past threshold!",totalMemoryAfterThreshold,memoryUsage);
 		return FALSE;
 	}
 
