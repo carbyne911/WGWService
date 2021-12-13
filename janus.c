@@ -3361,7 +3361,7 @@ gboolean janus_transport_is_auth_token_valid(janus_transport *plugin, const char
 gboolean carbyne_janus_transport_is_sanityhealthcheck_token_valid(janus_transport *plugin, const char *token) {
     return token && carbyne_janus_auth_sanityhealthcheck_signature(token);
 }
-long* getLong(char *str)
+long getLong(char *str)
 {
     char *p = str;
 	if(p==NULL) {
@@ -3383,7 +3383,7 @@ long* getLong(char *str)
     	        p++;
     	    }
     	}
-	return FALSE;
+	return 0;
 }
 #define MEM_INFO "/proc/meminfo"
 long totalMemory=0,totalMemoryAfterThreshold=0;
