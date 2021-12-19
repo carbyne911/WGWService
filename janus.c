@@ -3461,6 +3461,27 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 		return FALSE;
 	}
 
+
+
+	// checking sgw rtsp stream status
+	FILE *sgwRoomStatusFile = NULL;
+    char * sgwline = NULL;
+    size_t sgwlen = 0;
+    ssize_t sgwread;
+	sgwRoomStatusFile = fopen("/home/ubuntu/sgw-rstp-status", "r");
+	if (sgwRoomStatusFile == NULL){
+			JANUS_LOG(LOG_ERR,"Failed opening sgw status file\n");
+    		return FALSE;
+	}
+	while ((sgwread = getline(&sgwline, &sgwlen, sgwRoomStatusFile)) != -1) {
+	    if(strstr(sgwline,"true") == NULL){
+			JANUS_LOG(LOG_ERR,"%s\n",line);
+			fclose(sgwRoomStatusFile);
+			return FALSE;
+        }
+    }
+	fclose(sgwRoomStatusFile);
+
   	return TRUE;
 }
 
