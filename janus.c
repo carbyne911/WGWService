@@ -51,6 +51,7 @@
 #define JANUS_AUTHOR			"Meetecho s.r.l."
 #define JANUS_SERVER_NAME		"MyJanusInstance"
 #define DISK_SPACE_AVALIABLE_PERCENTAGE_THRESHOLD 10 /* CARBYNE-SHC */
+#define RAM_PERCENTAGE_THRESHOLD 70 /* CARBYNE-SHC */
 #ifdef __MACH__
 #define SHLIB_EXT "0.dylib"
 #else
@@ -3360,7 +3361,32 @@ gboolean janus_transport_is_auth_token_valid(janus_transport *plugin, const char
 gboolean carbyne_janus_transport_is_sanityhealthcheck_token_valid(janus_transport *plugin, const char *token) {
     return token && carbyne_janus_auth_sanityhealthcheck_signature(token);
 }
-
+long getLong(char *str)
+{
+    char *p = str;
+	if(p==NULL) {
+		JANUS_LOG(LOG_ERR,"Memory String is NULL!");
+		return FALSE;
+	}
+    while (p && *p != 0)
+    	{
+    	    if (isdigit(*p))
+    	    {
+    	        long val = strtol(p, &p, 10);
+				if(val == 0){
+					JANUS_LOG(LOG_ERR,"Memory String to long conversion faild with value of zero!");
+				}
+    	        return val;
+    	    }
+    	    else
+    	    {
+    	        p++;
+    	    }
+    	}
+	return 0;
+}
+#define MEM_INFO "/proc/meminfo"
+long totalMemory=0,totalMemoryAfterThreshold=0;
 gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_transport *plugin) {
   	struct statvfs stat;
   	const char* path="/";
@@ -3395,8 +3421,49 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
         }
     }
 	fclose(videoRoomStatusFile);
+
+	//checking RAM usage
+	FILE *meminfo = NULL;
+    char *lineMem = NULL;
+    size_t lenMem = 0;
+    ssize_t readMem = 0 ;
+    long availableMemory=0;
+    meminfo = fopen(MEM_INFO, "r");
+    if (meminfo == NULL)
+    {
+        JANUS_LOG(LOG_ERR,"Failed opening %s file!\n",MEM_INFO);
+        return FALSE;
+    }
+    while ((readMem = getline(&lineMem, &lenMem, meminfo)) != -1)
+    {
+		if(lineMem != NULL){
+        	
+			if(totalMemory == 0 && strstr(lineMem, "MemTotal") != NULL) {
+					totalMemory = getLong(lineMem);
+					totalMemoryAfterThreshold = totalMemory * RAM_PERCENTAGE_THRESHOLD / 100;
+					if(totalMemoryAfterThreshold == 0){
+						JANUS_LOG(LOG_ERR,"no system memory!\n");
+						return FALSE;
+					}
+				}
+			if(strstr(lineMem, "MemAvailable") != NULL) availableMemory = getLong(lineMem);
+		}
+    }
+    fclose(meminfo);
+
+	if(availableMemory == 0){
+			JANUS_LOG(LOG_ERR,"no Available memory!\n");
+			return FALSE;
+	}
+    int memoryUsage = (totalMemory-availableMemory);
+	if(memoryUsage > totalMemoryAfterThreshold){
+		JANUS_LOG(LOG_ERR,"%ld < %d memory usage past threshold!",totalMemoryAfterThreshold,memoryUsage);
+		return FALSE;
+	}
+
   	return TRUE;
 }
+
 /* CARBYNE-SHC end */
 
 void janus_transport_notify_event(janus_transport *plugin, void *transport, json_t *event) {
