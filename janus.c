@@ -3386,7 +3386,9 @@ long getLong(char *str)
 	return 0;
 }
 #define MEM_INFO "/proc/meminfo"
-long totalMemory=0,totalMemoryAfterThreshold=0;
+#define SGW_STATUS "/home/ubuntu/sgw-rtsp-status"
+#define VIDEO_ROOM "/home/ubuntu/video-room-status"
+long totalMemory = 0,totalMemoryAfterThreshold = 0;
 gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_transport *plugin) {
   	struct statvfs stat;
   	const char* path="/";
@@ -3405,36 +3407,58 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 
 	//checking if VideoRoom is Available
 	FILE *videoRoomStatusFile = NULL;
-    char * line = NULL;
-    size_t len = 0;
-    ssize_t read;
-	videoRoomStatusFile = fopen("/home/ubuntu/video-room-status", "r");
-	if (videoRoomStatusFile == NULL){
-			JANUS_LOG(LOG_ERR,"Failed opening file\n");
-    		return FALSE;
+    char * videoRoomLine = NULL;
+    size_t videoRoomlen = 0;
+	int videoRoomStatus = TRUE;
+	videoRoomStatusFile = fopen(VIDEO_ROOM, "r");
+	if (videoRoomStatusFile == NULL)
+	{
+			JANUS_LOG(LOG_ERR,"Failed opening VideoRoom status file\n");
+    		videoRoomStatus = FALSE;
 	}
-	while ((read = getline(&line, &len, videoRoomStatusFile)) != -1) {
-	    if(strstr(line,"true") == NULL){
-			JANUS_LOG(LOG_ERR,"%s\n",line);
-			fclose(videoRoomStatusFile);
-			return FALSE;
-        }
-    }
-	fclose(videoRoomStatusFile);
+	else
+	{
+		if((getline(&videoRoomLine, &videoRoomlen, videoRoomStatusFile)) != -1) {
+		    if(strstr(videoRoomLine,"true") == NULL){
+				JANUS_LOG(LOG_ERR,"VideoRoom not Available\n");
+				videoRoomStatus = FALSE;
+    	    }
+    	}
+		else
+		{
+			JANUS_LOG(LOG_ERR,"no line was found in VideoRoom status file\n");
+			videoRoomStatus = FALSE;
+		}
+	}
+	// free memeory
+	if (videoRoomStatusFile != NULL) 
+	{
+		fclose(videoRoomStatusFile);
+	}
+	if (videoRoomLine != NULL)
+	{ 
+		free(videoRoomLine);
+	}
+
+	// check status at the end
+	if (videoRoomStatus != TRUE) 
+	{
+		return FALSE;
+	}
 
 	//checking RAM usage
 	FILE *meminfo = NULL;
     char *lineMem = NULL;
     size_t lenMem = 0;
-    ssize_t readMem = 0 ;
     long availableMemory=0;
+	int memoryStatus = TRUE;
     meminfo = fopen(MEM_INFO, "r");
     if (meminfo == NULL)
     {
         JANUS_LOG(LOG_ERR,"Failed opening %s file!\n",MEM_INFO);
         return FALSE;
     }
-    while ((readMem = getline(&lineMem, &lenMem, meminfo)) != -1)
+    while ((getline(&lineMem, &lenMem, meminfo)) != -1)
     {
 		if(lineMem != NULL){
         	
@@ -3443,21 +3467,88 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 					totalMemoryAfterThreshold = totalMemory * RAM_PERCENTAGE_THRESHOLD / 100;
 					if(totalMemoryAfterThreshold == 0){
 						JANUS_LOG(LOG_ERR,"no system memory!\n");
-						return FALSE;
+						memoryStatus = FALSE;
 					}
 				}
 			if(strstr(lineMem, "MemAvailable") != NULL) availableMemory = getLong(lineMem);
 		}
+		else
+		{
+			JANUS_LOG(LOG_ERR,"no line was found in /proc/meminfo status file\n");
+			memoryStatus = FALSE;
+		}
     }
-    fclose(meminfo);
+    // free memeory
+	if (meminfo != NULL) 
+	{
+		fclose(meminfo);
+	}
+	if (lineMem != NULL)
+	{ 
+		free(lineMem);
+	}
+
+	// check status at the end
+	
 
 	if(availableMemory == 0){
 			JANUS_LOG(LOG_ERR,"no Available memory!\n");
-			return FALSE;
+			memoryStatus = FALSE;
 	}
     int memoryUsage = (totalMemory-availableMemory);
 	if(memoryUsage > totalMemoryAfterThreshold){
 		JANUS_LOG(LOG_ERR,"%ld < %d memory usage past threshold!",totalMemoryAfterThreshold,memoryUsage);
+		memoryStatus = FALSE;
+	}
+
+	if (memoryStatus != TRUE) 
+	{
+		return FALSE;
+	}
+
+	// checking sgw rtsp stream status
+	FILE *sgwRtspStatusFile = NULL;
+    char * sgwline = NULL;
+    size_t sgwlen = 0;
+	int sgwStatus = TRUE;
+	sgwRtspStatusFile = fopen(SGW_STATUS, "r");
+
+	// check if file is null
+	if (sgwRtspStatusFile == NULL)
+	{
+			JANUS_LOG(LOG_ERR,"Failed opening sgw status file\n");
+    		sgwStatus = FALSE;
+	}
+	else 
+	{
+		if ((getline(&sgwline, &sgwlen, sgwRtspStatusFile)) != -1)
+		 {
+		    if(strstr(sgwline,"true") == NULL)
+			{
+				JANUS_LOG(LOG_ERR,"SGW not Available\n");
+				sgwStatus = FALSE;
+    	    }
+    	} 
+		else 
+		{
+			JANUS_LOG(LOG_ERR,"no line was found in sgw status file\n");
+			sgwStatus = FALSE;
+		}
+	}
+
+	// free memeory
+	if (sgwRtspStatusFile != NULL) 
+	{
+		fclose(sgwRtspStatusFile);
+	}
+	if (sgwline != NULL)
+	{ 
+		free(sgwline);
+	}
+
+	// check status at the end
+	if (sgwStatus != TRUE) 
+	{
 		return FALSE;
 	}
 
