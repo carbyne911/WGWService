@@ -3468,28 +3468,32 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 	FILE *sgwRtspStatusFile = NULL;
     char * sgwline = NULL;
     size_t sgwlen = 0;
-
+	int sgwStatus = TRUE;
 	sgwRtspStatusFile = fopen(SGW_STATUS, "r");
 
+	// check if file is null
 	if (sgwRtspStatusFile == NULL){
 			JANUS_LOG(LOG_ERR,"Failed opening sgw status file\n");
-    		return FALSE;
+    		sgwStatus = FALSE;
 	}
-
-	if ((getline(&sgwline, &sgwlen, sgwRtspStatusFile)) != -1) {
-	    if(strstr(sgwline,"true") == NULL){
-			JANUS_LOG(LOG_ERR,"%s\n",line);
-			fclose(sgwRtspStatusFile);
-			return FALSE;
-        }
-    } else {
-		JANUS_LOG(LOG_ERR,"no line was found in sgw status file\n");
-		return FALSE;
+	else {
+		if ((getline(&sgwline, &sgwlen, sgwRtspStatusFile)) != -1) {
+		    if(strstr(sgwline,"true") == NULL){
+				JANUS_LOG(LOG_ERR,"SGW not Available\n");
+				sgwStatus = FALSE;
+    	    }
+    	} else {
+			JANUS_LOG(LOG_ERR,"no line was found in sgw status file\n");
+			sgwStatus = FALSE;
+		}
 	}
 
 	// free memeory
-	fclose(sgwRtspStatusFile);
-	free(sgwline);
+	if (sgwRtspStatusFile != NULL) fclose(sgwRtspStatusFile);
+	if (sgwline != NULL) free(sgwline);
+
+	// check status at the end
+	if (sgwStatus != TRUE) return FALSE;
 
   	return TRUE;
 }
