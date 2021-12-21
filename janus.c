@@ -3468,21 +3468,28 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 	FILE *sgwRtspStatusFile = NULL;
     char * sgwline = NULL;
     size_t sgwlen = 0;
-    ssize_t sgwStatusFileRead=0;
+
 	sgwRtspStatusFile = fopen(SGW_STATUS, "r");
+
 	if (sgwRtspStatusFile == NULL){
 			JANUS_LOG(LOG_ERR,"Failed opening sgw status file\n");
     		return FALSE;
 	}
-	while ((sgwStatusFileRead = getline(&sgwline, &sgwlen, sgwRtspStatusFile)) != -1) {
+
+	if ((getline(&sgwline, &sgwlen, sgwRtspStatusFile)) != -1) {
 	    if(strstr(sgwline,"true") == NULL){
 			JANUS_LOG(LOG_ERR,"%s\n",line);
 			fclose(sgwRtspStatusFile);
 			return FALSE;
         }
-    }
-	if((sgwStatusFileRead = getline(&sgwline, &sgwlen, sgwRtspStatusFile)) == -1) return FALSE;
+    } else {
+		JANUS_LOG(LOG_ERR,"no line was found in sgw status file\n");
+		return FALSE;
+	}
+
+	// free memeory
 	fclose(sgwRtspStatusFile);
+	free(sgwline);
 
   	return TRUE;
 }
