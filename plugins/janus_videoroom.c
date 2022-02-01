@@ -6830,15 +6830,26 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 										  "udpsrc  address=127.0.0.1 port=0  name=%s timeout=60000000000"
 										  " caps=\"application/x-rtp,media=audio,encoding-name=OPUS\" !"
 										  " queue max-size-time=1000000 name=queueMixer1 ! rtpopusdepay name=rtpopusdepayMixer1 ! opusdec name=opusdecMixer1 !"
-										  " audioconvert name=audioconvertcMixer1 !  audiomixer name=audiomixerMixer ! audioconvert name=audioconvertcMixer3 !"
-										  "  audio/x-raw,rate=24000 ! voaacenc bitrate=320000 ! rtspclientsink name=rtspclientsinkMixer  protocols=GST_RTSP_LOWER_TRANS_TCP "
+										  " audio/x-raw,channels=1 ! audiomixmatrix in-channels=1 out-channels=2 channel-mask=-1 matrix=\"<<(double)1.0>,<(double)0.0>>\" ! audio/x-raw,channels=2 ! queue max-size-time=1000000 !"
+							//			  " audioconvert name=audioconvertcMixer1 !  audiomixer name=audiomixerMixer ! audioconvert name=audioconvertcMixer3 !"
+										  " audiomixer name=audiomixerMixer ! audioconvert name=audioconvertcMixer3 !"
+										  " audio/x-raw,rate=24000 ! voaacenc bitrate=320000 ! rtspclientsink name=rtspclientsinkMixer  protocols=GST_RTSP_LOWER_TRANS_TCP "
 										  " tcp-timeout=3000000 location=\"%s\" latency=0"
 										  " udpsrc  address=127.0.0.1 port=0  name=%s timeout=60000000000"
 										  " caps=\"application/x-rtp,media=audio,encoding-name=OPUS\" ! "
 										  " queue name=queueMixer2 max-size-time=1000000 ! rtpopusdepay  name=rtpopusdepayMixer2  ! opusdec  name=opusdecMixer2 !"
-										  " audioconvert name=audioconvertcMixer2 ! audiomixerMixer. ",
+  										  " audio/x-raw,channels=1 ! audiomixmatrix in-channels=1 out-channels=2 channel-mask=-1 matrix=\"<<(double)0.0>,<(double)1.0>>\" ! audio/x-raw,channels=2 ! queue max-size-time=1000000 !"
+										  //" audioconvert name=audioconvertcMixer2 ! audiomixerMixer. ",
+										  " audiomixerMixer. ",
 										  UDPSRC_1_ELEMENT_NAME, rtsp_full_url, UDPSRC_2_ELEMENT_NAME),
 							   "launch_string", 0, MAX_STRING_LEN);
+		
+		// 					   	"ingressTee. ! %s ! audio/x-raw,channels=1 ! audiomixmatrix in-channels=1 out-channels=2 channel-mask=-1 matrix=\"<<(double)1.0>,<(double)0.0>>\" ! audio/x-raw,channels=2 ! queue max-size-time=1000000 ! mix. "
+    	// 	"egressTee. ! %s  ! audio/x-raw,channels=1 ! audiomixmatrix in-channels=1 out-channels=2 channel-mask=-1 matrix=\"<<(double)0.0>,<(double)1.0>>\" ! audio/x-raw,channels=2 ! queue max-size-time=1000000 ! mix. "
+    	// 	"mix. ! audioconvert ! audioresample ! audio/x-raw,rate=(int)48000,channels=(int)2 ! voaacenc bitrate=320000 ! queue max-size-time=40000000 ! rtspClientSinkMix-%s.",
+		
+		// audio/x-raw,channels=1 ! audiomixmatrix in-channels=1 out-channels=2 channel-mask=-1 matrix="<<(double)1.0>,<(double)0.0>>" ! audio/x-raw,channels=2 ! queue max-size-time=1000000 ! mix. 
+
 		}
 		else
 		{
