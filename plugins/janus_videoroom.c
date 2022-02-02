@@ -6833,7 +6833,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 										  " audio/x-raw,channels=1 ! audiomixmatrix in-channels=1 out-channels=2 channel-mask=-1 matrix=\"<<(double)1.0>,<(double)0.0>>\" ! audio/x-raw,channels=2 ! queue max-size-time=1000000 !"
 							//			  " audioconvert name=audioconvertcMixer1 !  audiomixer name=audiomixerMixer ! audioconvert name=audioconvertcMixer3 !"
 										  " audiomixer name=audiomixerMixer ! audioconvert name=audioconvertcMixer3 !"
-										  " audio/x-raw,rate=24000 ! voaacenc bitrate=320000 ! rtspclientsink name=rtspclientsinkMixer  protocols=GST_RTSP_LOWER_TRANS_TCP "
+										  " audio/x-raw,rate=48000 ! voaacenc bitrate=320000 ! rtspclientsink name=rtspclientsinkMixer  protocols=GST_RTSP_LOWER_TRANS_TCP "
 										  " tcp-timeout=3000000 location=\"%s\" latency=0"
 										  " udpsrc  address=127.0.0.1 port=0  name=%s timeout=60000000000"
 										  " caps=\"application/x-rtp,media=audio,encoding-name=OPUS\" ! "
