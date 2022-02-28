@@ -3764,9 +3764,10 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 			g_clear_pointer(&list, g_strfreev);
 		}
 		/* By default, we force VP8 as the only video codec */
-		videoroom->vcodec[0] = JANUS_VIDEOCODEC_VP8;
-		videoroom->vcodec[1] = JANUS_VIDEOCODEC_H264;
-		videoroom->vcodec[2] = JANUS_VIDEOCODEC_NONE;
+		videoroom->vcodec[0] = JANUS_VIDEOCODEC_VP9;
+		videoroom->vcodec[1] = JANUS_VIDEOCODEC_VP8;
+		videoroom->vcodec[2] = JANUS_VIDEOCODEC_H264;
+		videoroom->vcodec[3] = JANUS_VIDEOCODEC_NONE;
 		/* Check if we're forcing a different single codec, or allowing more than one */
 		if (videocodec)
 		{
@@ -3794,14 +3795,16 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		const char *vp9_profile = json_string_value(vp9profile);
 		if (vp9_profile && (videoroom->vcodec[0] == JANUS_VIDEOCODEC_VP9 ||
 							videoroom->vcodec[1] == JANUS_VIDEOCODEC_VP9 ||
-							videoroom->vcodec[2] == JANUS_VIDEOCODEC_VP9))
+							videoroom->vcodec[2] == JANUS_VIDEOCODEC_VP9 ||
+							videoroom->vcodec[3] == JANUS_VIDEOCODEC_VP9))
 		{
 			videoroom->vp9_profile = g_strdup(vp9_profile);
 		}
 		const char *h264_profile = json_string_value(h264profile);
 		if (h264_profile && (videoroom->vcodec[0] == JANUS_VIDEOCODEC_H264 ||
 							 videoroom->vcodec[1] == JANUS_VIDEOCODEC_H264 ||
-							 videoroom->vcodec[2] == JANUS_VIDEOCODEC_H264))
+							 videoroom->vcodec[2] == JANUS_VIDEOCODEC_H264 ||
+							 videoroom->vcodec[3] == JANUS_VIDEOCODEC_H264))
 		{
 			videoroom->h264_profile = g_strdup(h264_profile);
 		}
@@ -6781,6 +6784,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 						   "log_string", 0, MAX_STRING_LEN);
 		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sVIDEO_%s", rtsp_url, room->room_id_str),
 						   "rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
+		JANUS_LOG(LOG_INFO, "CARBYNE:::::RtpUrl = %s\n", rtsp_full_url); 
 		if (vcodec == JANUS_VIDEOCODEC_VP8)
 		{
 			JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 --------------%s\n", log_string);
@@ -6806,11 +6810,17 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		else if (vcodec == JANUS_VIDEOCODEC_VP9)
 		{
 			JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP9 --------------%s\n", log_string);
-			LOG_ERROR_AND_GO_TO_CLEANUP("Unsupported codec %d %s\n", vcodec, log_string);
+			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
+										  "udpsrc address=127.0.0.1 port=0 name=%s "
+										  " caps=\"application/x-rtp,media=video,encoding-name=VP9\" !"
+										  " rtpjitterbuffer  name=rtpjitterbufferVideo ! rtpvp9depay name=rtpvp8depayVideo ! queue name=queueVideo ! "
+										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
+										  UDPSRC_1_ELEMENT_NAME, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
+							   "launch_string", 0, MAX_STRING_LEN);
 		}
 		else
 		{
-			LOG_ERROR_AND_GO_TO_CLEANUP("Unsupported codec %d  %s!!!\n", vcodec, log_string);
+			LOG_ERROR_AND_GO_TO_CLEANUP("Unsupported codec (%s)[%d]  %s!!!\n", janus_videocodec_name(vcodec), vcodec, log_string);
 		}
 		break;
 	case MEDIA_AUDIO_MIXER:
