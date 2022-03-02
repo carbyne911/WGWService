@@ -3764,9 +3764,9 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 			g_clear_pointer(&list, g_strfreev);
 		}
 		/* By default, we force VP8 as the only video codec */
-		videoroom->vcodec[0] = JANUS_VIDEOCODEC_VP9;
-		videoroom->vcodec[1] = JANUS_VIDEOCODEC_VP8;
-		videoroom->vcodec[2] = JANUS_VIDEOCODEC_H264;
+		videoroom->vcodec[0] = JANUS_VIDEOCODEC_VP8;
+		videoroom->vcodec[1] = JANUS_VIDEOCODEC_H264;
+		videoroom->vcodec[2] = JANUS_VIDEOCODEC_VP9;
 		videoroom->vcodec[3] = JANUS_VIDEOCODEC_NONE;
 		/* Check if we're forcing a different single codec, or allowing more than one */
 		if (videocodec)
