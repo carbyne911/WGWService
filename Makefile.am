@@ -672,31 +672,6 @@ pcap2mjr_LDADD = \
 	$(PCAP_LIBS) \
 	$(NULL)
 
-if ENABLE_PCAP2MJR
-pcap2mjr_SOURCES = \
-	postprocessing/p2m-cmdline.c \
-	postprocessing/p2m-cmdline.h \
-	postprocessing/pp-rtp.h \
-	postprocessing/pcap2mjr.c \
-	log.c \
-	utils.c \
-	$(NULL)
-
-pcap2mjr_CFLAGS = \
-	$(AM_CFLAGS) \
-	-I$(top_builddir)/postprocessing \
-	$(POST_PROCESSING_CFLAGS) \
-	$(PCAP_CFLAGS) \
-	$(BORINGSSL_CFLAGS) \
-	$(NULL)
-
-pcap2mjr_LDADD = \
-	$(BORINGSSL_LIBS) \
-	$(POST_PROCESSING_LIBS) \
-	$(POST_PROCESSING_MANUAL_LIBS) \
-	$(PCAP_LIBS) \
-	$(NULL)
-
 BUILT_SOURCES += postprocessing/p2m-cmdline.c postprocessing/p2m-cmdline.h
 
 postprocessing/p2m-cmdline.h: postprocessing/p2m-cmdline.c
