@@ -215,6 +215,7 @@ room-<unique room ID>: {
 	"new_fir_freq" : <new period for regular PLI keyframe requests to publishers>,
 	"new_publishers" : <new cap on the number of concurrent active WebRTC publishers>,
 	"new_lock_record" : <true|false, whether recording state can only be changed when providing the room secret>,
+	"new_rec_dir" : "<the new path where the next .mjr files should being saved>",
 	"permanent" : <true|false, whether the room should be also removed from the config file, default=false>
 }
 \endverbatim
@@ -432,7 +433,7 @@ room-<unique room ID>: {
 			"id" : <unique numeric ID of the participant>,
 			"display" : "<display name of the participant, if any; optional>",
 			"publisher" : "<true|false, whether user is an active publisher in the room>",
-			"talking" : <true|false, whether user is talking or not (only if audio levels are used)>
+			"talking" : <true|false, whether user is talking or not (only if audio levels are used)>,
 			"subscribers" : <number of subscribers for this participant, if any>
 		},
 		// Other participants
@@ -1089,7 +1090,9 @@ room-<unique room ID>: {
 	"spatial_layer" : <spatial layer to receive (0-2), in case VP9-SVC is enabled; optional>,
 	"temporal_layer" : <temporal layers to receive (0-2), in case VP9-SVC is enabled; optional>,
 	"audio_level_average" : "<if provided, overrides the room audio_level_average for this user; optional>",
-	"audio_active_packets" : "<if provided, overrides the room audio_active_packets for this user; optional>"
+	"audio_active_packets" : "<if provided, overrides the room audio_active_packets for this user; optional>",
+	"min_delay" : <minimum delay to enforce via the playout-delay RTP extension, in blocks of 10ms; optional>,
+	"max_delay" : <maximum delay to enforce via the playout-delay RTP extension, in blocks of 10ms; optional>
 }
 \endverbatim
  *
@@ -1811,7 +1814,6 @@ typedef struct janus_videoroom_publisher
 	gboolean talking;			   /* Whether this participant is currently talking (uses audio levels extension) */
 	gboolean data_active, data_muted;
 	int16_t min_delay, max_delay;
-	gboolean data_active, data_muted;
 	gboolean firefox; /* We send Firefox users a different kind of FIR */
 	uint32_t bitrate;
 	gint64 remb_startup;	   /* Incremental changes on REMB to reach the target at startup */
@@ -1872,7 +1874,6 @@ typedef struct janus_videoroom_subscriber
 	int temporal_layer, target_temporal_layer;
 	gboolean e2ee; /* If media for this subscriber is end-to-end encrypted */
 	int16_t min_delay, max_delay;
-	gboolean e2ee;		/* If media for this subscriber is end-to-end encrypted */
 	volatile gint destroyed;
 	janus_refcount ref;
 } janus_videoroom_subscriber;
@@ -3180,7 +3181,6 @@ static void janus_videoroom_leave_or_unpublish(janus_videoroom_publisher *partic
 		g_thread_pool_push(g_stop_thread_pool, GINT_TO_POINTER(&participant->room->gst_thread_parameters[MEDIA_AUDIO_MIXER].gstr), NULL);
 	}
 
-	janus_mutex_unlock(&rooms_mutex);
 	janus_videoroom *room = participant->room;
 	if (!room || g_atomic_int_get(&room->destroyed)) {
 		janus_mutex_unlock(&rooms_mutex);
@@ -4728,7 +4728,6 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		janus_mutex_lock(&rooms_mutex);
 		janus_videoroom *videoroom = NULL;
 		error_code = janus_videoroom_access_room(root, TRUE, FALSE, &videoroom, error_cause, sizeof(error_cause));
-		janus_mutex_unlock(&rooms_mutex);
 		if(error_code != 0) {
 			janus_mutex_unlock(&rooms_mutex);
 			goto prepare_response;
@@ -5623,7 +5622,7 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 						{
 							/* We've started recording, send a PLI/FIR and go on */
 							janus_videoroom_recorder_create(
-								participant, 
+								participant,
 								strstr(participant->sdp, "m=audio") != NULL,
 								strstr(participant->sdp, "m=video") != NULL,
 								strstr(participant->sdp, "m=application") != NULL);
@@ -6897,7 +6896,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 						   "log_string", 0, MAX_STRING_LEN);
 		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sVIDEO_%s", rtsp_url, room->room_id_str),
 						   "rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
-		JANUS_LOG(LOG_INFO, "CARBYNE:::::RtpUrl = %s\n", rtsp_full_url); 
+		JANUS_LOG(LOG_INFO, "CARBYNE:::::RtpUrl = %s\n", rtsp_full_url);
 		if (vcodec == JANUS_VIDEOCODEC_VP8)
 		{
 			JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 --------------%s\n", log_string);
@@ -7516,7 +7515,7 @@ void janus_videoroom_slow_link(janus_plugin_session *handle, int uplink, int vid
 	janus_refcount_decrease(&session->ref);
 }
 
-char *get_time_stamp()
+static char *get_time_stamp(void)
 {
 	struct timeval current_time = {0};
 	gettimeofday(&current_time, NULL);
@@ -7650,7 +7649,7 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 // CARBYNE-S3-UPLOAD
 #define REC_JSON "{\n \"recordingName\" : \"%s\" ,\n \"directory\" : \"%s\" ,\n\"codec\" : \"%s\"\n}"
 #define REC_JSON_PATH "/home/ubuntu/RecJSON/%s.json"
-int create_recording_json(char *filename, char *codec)
+static int create_recording_json(char *filename, char *codec)
 {
 	char *jsonObj = NULL;
 	asprintf(&jsonObj, REC_JSON, filename, RECORDINGS_PATH, codec);
@@ -9988,7 +9987,7 @@ static void *janus_videoroom_handler(void *data)
 										JANUS_LOG(LOG_WARN, "Invalid playout-delay extension ID: %s\n", a->value);
 								}
 								else if (m->type == JANUS_SDP_AUDIO && !strcasecmp(a->name, "fmtp"))
-								{	
+								{
 									if(strstr(a->value, "useinbandfec=1") && videoroom->do_opusfec) {
 										participant->do_opusfec = TRUE;
 										if(strlen(custom_fmtp) == 0) {
@@ -10011,7 +10010,7 @@ static void *janus_videoroom_handler(void *data)
 										} else {
 											g_strlcat(custom_fmtp, ";stereo=1", sizeof(custom_fmtp));
 										}
-									}								{
+									}
 									char *tmp = strchr(a->value, ' ');
 									if (tmp && strlen(tmp) > 1)
 									{
