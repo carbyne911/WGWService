@@ -62,7 +62,6 @@ var myusername = null;
 var yourusername = null;
 
 var doSimulcast = (getQueryStringValue("simulcast") === "yes" || getQueryStringValue("simulcast") === "true");
-var doSimulcast2 = (getQueryStringValue("simulcast2") === "yes" || getQueryStringValue("simulcast2") === "true");
 var simulcastStarted = false;
 
 $(document).ready(function() {
@@ -148,7 +147,7 @@ $(document).ready(function() {
 										} else if(result["event"]) {
 											var event = result["event"];
 											if(event === 'registered') {
-												myusername = result["username"];
+												myusername = escapeXmlTags(result["username"]);
 												Janus.log("Successfully registered as " + myusername + "!");
 												$('#youok').removeClass('hide').show().html("Registered as '" + myusername + "'");
 												// Get a list of available peers, just for fun
@@ -163,7 +162,7 @@ $(document).ready(function() {
 												bootbox.alert("Waiting for the peer to answer...");
 											} else if(event === 'incomingcall') {
 												Janus.log("Incoming call from " + result["username"] + "!");
-												yourusername = result["username"];
+												yourusername = escapeXmlTags(result["username"]);
 												// Notify user
 												bootbox.hideAll();
 												incoming = bootbox.dialog({
@@ -213,7 +212,7 @@ $(document).ready(function() {
 												});
 											} else if(event === 'accepted') {
 												bootbox.hideAll();
-												var peer = result["username"];
+												var peer = escapeXmlTags(result["username"]);
 												if(!peer) {
 													Janus.log("Call started!");
 												} else {
@@ -596,6 +595,15 @@ function getQueryStringValue(name) {
 	var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
 		results = regex.exec(location.search);
 	return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+// Helper to escape XML tags
+function escapeXmlTags(value) {
+	if(value) {
+		var escapedValue = value.replace(new RegExp('<', 'g'), '&lt');
+		escapedValue = escapedValue.replace(new RegExp('>', 'g'), '&gt');
+		return escapedValue;
+	}
 }
 
 // Helpers to create Simulcast-related UI, if enabled

@@ -25,6 +25,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <poll.h>
+
+#include <openssl/rand.h>
 #ifdef HAVE_TURNRESTAPI
 #include <curl/curl.h>
 #endif
@@ -50,6 +52,7 @@
 #define JANUS_NAME				"Janus WebRTC Server"
 #define JANUS_AUTHOR			"Meetecho s.r.l."
 #define JANUS_SERVER_NAME		"MyJanusInstance"
+
 #define DISK_SPACE_AVALIABLE_PERCENTAGE_THRESHOLD 10 /* CARBYNE-SHC */
 #define RAM_PERCENTAGE_THRESHOLD 70 /* CARBYNE-SHC */
 #ifdef __MACH__
@@ -102,6 +105,7 @@ static struct janus_json_parameter incoming_request_parameters[] = {
 static struct janus_json_parameter attach_parameters[] = {
 	{"plugin", JSON_STRING, JANUS_JSON_PARAM_REQUIRED},
 	{"opaque_id", JSON_STRING, 0},
+	{"loop_index", JSON_INTEGER, JANUS_JSON_PARAM_POSITIVE},
 };
 static struct janus_json_parameter body_parameters[] = {
 	{"body", JSON_OBJECT, JANUS_JSON_PARAM_REQUIRED}
@@ -111,6 +115,7 @@ static struct janus_json_parameter jsep_parameters[] = {
 	{"sdp", JSON_STRING, JANUS_JSON_PARAM_REQUIRED},
 	{"trickle", JANUS_JSON_BOOL, 0},
 	{"rid_order", JSON_STRING, 0},
+	{"force_relay", JANUS_JSON_BOOL, 0},
 	{"e2ee", JANUS_JSON_BOOL, 0}
 };
 static struct janus_json_parameter add_token_parameters[] = {
@@ -307,6 +312,9 @@ static uint candidates_timeout = DEFAULT_CANDIDATES_TIMEOUT;
 /* By default we list dependencies details, but some may prefer not to */
 static gboolean hide_dependencies = FALSE;
 
+/* By default we do not exit if a shared library cannot be loaded or is missing an expected symbol */
+static gboolean exit_on_dl_error = FALSE;
+
 /* WebRTC encryption is obviously enabled by default. In the rare cases
  * you want to disable it for debugging purposes, though, you can do
  * that either via command line (-w) or in the main configuration file */
@@ -379,7 +387,11 @@ static json_t *janus_info(const char *transaction) {
 		g_snprintf(server, 255, "%s:%"SCNu16, janus_ice_get_turn_server(), janus_ice_get_turn_port());
 		json_object_set_new(info, "turn-server", json_string(server));
 	}
+	if(janus_ice_is_force_relay_allowed())
+		json_object_set_new(info, "allow-force-relay", json_true());
 	json_object_set_new(info, "static-event-loops", json_integer(janus_ice_get_static_event_loops()));
+	if(janus_ice_get_static_event_loops())
+		json_object_set_new(info, "loop-indication", janus_ice_is_loop_indication_allowed() ? json_true() : json_false());
 	json_object_set_new(info, "api_secret", api_secret ? json_true() : json_false());
 	json_object_set_new(info, "auth_token", janus_auth_is_enabled() ? json_true() : json_false());
 	json_object_set_new(info, "event_handlers", janus_events_is_enabled() ? json_true() : json_false());
@@ -611,6 +623,7 @@ void janus_plugin_send_remb(janus_plugin_session *plugin_session, uint32_t bitra
 void janus_plugin_close_pc(janus_plugin_session *plugin_session);
 void janus_plugin_end_session(janus_plugin_session *plugin_session);
 void janus_plugin_notify_event(janus_plugin *plugin, janus_plugin_session *plugin_session, json_t *event);
+gboolean janus_plugin_auth_is_signed(void);
 gboolean janus_plugin_auth_is_signature_valid(janus_plugin *plugin, const char *token);
 gboolean janus_plugin_auth_signature_contains(janus_plugin *plugin, const char *token, const char *desc);
 static janus_callbacks janus_handler_plugin =
@@ -625,6 +638,7 @@ static janus_callbacks janus_handler_plugin =
 		.end_session = janus_plugin_end_session,
 		.events_is_enabled = janus_events_is_enabled,
 		.notify_event = janus_plugin_notify_event,
+		.auth_is_signed = janus_plugin_auth_is_signed,
 		.auth_is_signature_valid = janus_plugin_auth_is_signature_valid,
 		.auth_signature_contains = janus_plugin_auth_signature_contains,
 	};
@@ -1203,7 +1217,7 @@ int janus_process_incoming_request(janus_request *request) {
 			}
 		}
 		json_t *opaque = json_object_get(root, "opaque_id");
-		const char *opaque_id = opaque ? json_string_value(opaque) : NULL;
+		const char *opaque_id = opaque ? json_string_value(opaque) : NULL
 		/* Create handle */
 		handle = janus_ice_handle_create(session, opaque_id, token_value);
 		if(handle == NULL) {
@@ -1215,7 +1229,7 @@ int janus_process_incoming_request(janus_request *request) {
 		janus_refcount_increase(&handle->ref);
 		/* Attach to the plugin */
 		int error = 0;
-		if((error = janus_ice_handle_attach_plugin(session, handle, plugin_t)) != 0) {
+		if((error = janus_ice_handle_attach_plugin(session, handle, plugin_t, loop_index)) != 0) {
 			/* TODO Make error struct to pass verbose information */
 			janus_session_handles_remove(session, handle);
 			JANUS_LOG(LOG_ERR, "Couldn't attach to plugin '%s', error '%d'\n", plugin_text, error);
@@ -1488,6 +1502,20 @@ int janus_process_incoming_request(janus_request *request) {
 						goto jsondone;
 					}
 				}
+				/* If for some reason the user is asking us to force using a relay, do that. Notice
+				 * that this only works with libnice >= 0.1.14, and will cause the PeerConnection
+				 * to fail if Janus itself is not configured to use a TURN server. Don't use this
+				 * feature if you don't know what you're doing! You will almost always NOT want
+				 * Janus itself to use TURN: https://janus.conf.meetecho.com/docs/FAQ.html#turn */
+				if(json_is_true(json_object_get(jsep, "force_relay"))) {
+					if(!janus_ice_is_force_relay_allowed()) {
+						JANUS_LOG(LOG_WARN, "[%"SCNu64"] Forcing Janus to use a TURN server is not allowed\n", handle->handle_id);
+					} else {
+						JANUS_LOG(LOG_VERB, "[%"SCNu64"] Forcing Janus to use a TURN server\n", handle->handle_id);
+						g_object_set(G_OBJECT(handle->agent), "force-relay", TRUE, NULL);
+					}
+				}
+				/* Process the remote SDP */
 				if(janus_sdp_process(handle, parsed_sdp, rids_hml, FALSE) < 0) {
 					JANUS_LOG(LOG_ERR, "Error processing SDP\n");
 					janus_sdp_destroy(parsed_sdp);
@@ -1506,7 +1534,7 @@ int janus_process_incoming_request(janus_request *request) {
 					}
 					janus_request_ice_handle_answer(handle, audio, video, data, jsep_sdp);
 					/* Check if the answer does contain the mid/abs-send-time/twcc extmaps */
-					gboolean do_mid = FALSE, do_twcc = FALSE, do_abs_send_time = FALSE;
+					gboolean do_mid = FALSE, do_twcc = FALSE, do_dd = TRUE, do_abs_send_time = FALSE;
 					GList *temp = parsed_sdp->m_lines;
 					while(temp) {
 						janus_sdp_mline *m = (janus_sdp_mline *)temp->data;
@@ -1518,6 +1546,8 @@ int janus_process_incoming_request(janus_request *request) {
 									do_mid = TRUE;
 								else if(strstr(a->value, JANUS_RTP_EXTMAP_TRANSPORT_WIDE_CC))
 									do_twcc = TRUE;
+								else if(strstr(a->value, JANUS_RTP_EXTMAP_DEPENDENCY_DESC))
+									do_dd = TRUE;
 								else if(strstr(a->value, JANUS_RTP_EXTMAP_ABS_SEND_TIME))
 									do_abs_send_time = TRUE;
 							}
@@ -1531,6 +1561,8 @@ int janus_process_incoming_request(janus_request *request) {
 						handle->stream->do_transport_wide_cc = FALSE;
 						handle->stream->transport_wide_cc_ext_id = 0;
 					}
+					if(!do_dd && handle->stream)
+						handle->stream->dependencydesc_ext_id = 0;
 					if(!do_abs_send_time && handle->stream)
 						handle->stream->abs_send_time_ext_id = 0;
 				} else {
@@ -1543,12 +1575,16 @@ int janus_process_incoming_request(janus_request *request) {
 					handle->stream->audiolevel_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_AUDIO_LEVEL);
 					/* Check if the video orientation ID extension is being negotiated */
 					handle->stream->videoorientation_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_VIDEO_ORIENTATION);
+					/* Check if the playout delay ID extension is being negotiated */
+					handle->stream->playoutdelay_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_PLAYOUT_DELAY);
 					/* Check if the abs-send-time ID extension is being negotiated */
 					handle->stream->abs_send_time_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_ABS_SEND_TIME);
 					/* Check if transport wide CC is supported */
 					int transport_wide_cc_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_TRANSPORT_WIDE_CC);
 					handle->stream->do_transport_wide_cc = transport_wide_cc_ext_id > 0 ? TRUE : FALSE;
 					handle->stream->transport_wide_cc_ext_id = transport_wide_cc_ext_id;
+					/* Check if the dependency descriptor ID extension is being negotiated */
+					handle->stream->dependencydesc_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_DEPENDENCY_DESC);
 				}
 			} else {
 				/* FIXME This is a renegotiation: we can currently only handle simple changes in media
@@ -1606,12 +1642,16 @@ int janus_process_incoming_request(janus_request *request) {
 					handle->stream->audiolevel_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_AUDIO_LEVEL);
 					/* Check if the video orientation ID extension is being negotiated */
 					handle->stream->videoorientation_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_VIDEO_ORIENTATION);
+					/* Check if the playout delay ID extension is being negotiated */
+					handle->stream->playoutdelay_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_PLAYOUT_DELAY);
 					/* Check if the abs-send-time ID extension is being negotiated */
 					handle->stream->abs_send_time_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_ABS_SEND_TIME);
 					/* Check if transport wide CC is supported */
 					int transport_wide_cc_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_TRANSPORT_WIDE_CC);
 					handle->stream->do_transport_wide_cc = transport_wide_cc_ext_id > 0 ? TRUE : FALSE;
 					handle->stream->transport_wide_cc_ext_id = transport_wide_cc_ext_id;
+					/* Check if the dependency descriptor ID extension is being negotiated */
+					handle->stream->dependencydesc_ext_id = janus_rtp_header_extension_get_id(jsep_sdp, JANUS_RTP_EXTMAP_DEPENDENCY_DESC);
 				}
 			}
 			char *tmp = handle->remote_sdp;
@@ -2654,6 +2694,16 @@ int janus_process_incoming_admin_request(janus_request *request) {
 			/* Send the success reply */
 			ret = janus_process_success(request, reply);
 			goto jsondone;
+		} else if(!strcasecmp(message_text, "loops_info")) {
+			/* Query the Janus core to see how many handles each static loop is
+			 * handling: will return an empty list if static loops are disabled */
+			json_t *list = janus_ice_static_event_loops_info();
+			/* Prepare JSON reply */
+			json_t *reply = janus_create_message("success", 0, transaction_text);
+			json_object_set_new(reply, "loops", list);
+			/* Send the success reply */
+			ret = janus_process_success(request, reply);
+			goto jsondone;
 		} else {
 			/* No message we know of */
 			ret = janus_process_error(request, session_id, transaction_text, JANUS_ERROR_INVALID_REQUEST_PATH, "Unhandled request '%s' at this path", message_text);
@@ -3081,6 +3131,8 @@ json_t *janus_admin_stream_summary(janus_ice_stream *stream) {
 			json_object_set_new(sc, "audio-pt", json_integer(stream->audio_payload_type));
 		if(stream->audio_codec != NULL)
 			json_object_set_new(sc, "audio-codec", json_string(stream->audio_codec));
+		if(stream->opusred_pt > 0)
+			json_object_set_new(sc, "opus-red-pt", json_integer(stream->opusred_pt));
 		if(stream->video_payload_type > -1)
 			json_object_set_new(sc, "video-pt", json_integer(stream->video_payload_type));
 		if(stream->video_rtx_payload_type > -1)
@@ -3104,6 +3156,10 @@ json_t *janus_admin_stream_summary(janus_ice_stream *stream) {
 		json_object_set_new(se, JANUS_RTP_EXTMAP_AUDIO_LEVEL, json_integer(stream->audiolevel_ext_id));
 	if(stream->videoorientation_ext_id > 0)
 		json_object_set_new(se, JANUS_RTP_EXTMAP_VIDEO_ORIENTATION, json_integer(stream->videoorientation_ext_id));
+	if(stream->playoutdelay_ext_id > 0)
+		json_object_set_new(se, JANUS_RTP_EXTMAP_PLAYOUT_DELAY, json_integer(stream->playoutdelay_ext_id));
+	if(stream->dependencydesc_ext_id > 0)
+		json_object_set_new(se, JANUS_RTP_EXTMAP_DEPENDENCY_DESC, json_integer(stream->dependencydesc_ext_id));
 	json_object_set_new(s, "extensions", se);
 	json_t *bwe = json_object();
 	json_object_set_new(bwe, "twcc", stream->do_transport_wide_cc ? json_true() : json_false());
@@ -3160,6 +3216,8 @@ json_t *janus_admin_stream_summary(janus_ice_stream *stream) {
 	}
 	if(rtcp_stats != NULL)
 		json_object_set_new(s, "rtcp_stats", rtcp_stats);
+	if(stream->remb_bitrate > 0)
+		json_object_set_new(s, "remb-bitrate", json_integer(stream->remb_bitrate));
 	json_object_set_new(s, "components", components);
 	return s;
 }
@@ -3899,7 +3957,8 @@ json_t *janus_plugin_handle_sdp(janus_plugin_session *plugin_session, janus_plug
 		}
 		/* Make sure we don't send the rid/repaired-rid attributes when offering ourselves */
 		int mid_ext_id = 0, transport_wide_cc_ext_id = 0, abs_send_time_ext_id = 0,
-			audiolevel_ext_id = 0, videoorientation_ext_id = 0;
+			audiolevel_ext_id = 0, videoorientation_ext_id = 0, playoutdelay_ext_id = 0, dependencydesc_ext_id = 0;
+		int opusred_pt = 0;
 		GList *temp = parsed_sdp->m_lines;
 		while(temp) {
 			janus_sdp_mline *m = (janus_sdp_mline *)temp->data;
@@ -3907,26 +3966,38 @@ json_t *janus_plugin_handle_sdp(janus_plugin_session *plugin_session, janus_plug
 			while(tempA) {
 				janus_sdp_attribute *a = (janus_sdp_attribute *)tempA->data;
 				if(a->name && a->value) {
-					if(strstr(a->value, JANUS_RTP_EXTMAP_MID))
-						mid_ext_id = atoi(a->value);
-					else if(strstr(a->value, JANUS_RTP_EXTMAP_TRANSPORT_WIDE_CC))
-						transport_wide_cc_ext_id = atoi(a->value);
-					else if(strstr(a->value, JANUS_RTP_EXTMAP_ABS_SEND_TIME))
-						abs_send_time_ext_id = atoi(a->value);
-					else if(strstr(a->value, JANUS_RTP_EXTMAP_AUDIO_LEVEL))
-						audiolevel_ext_id = atoi(a->value);
-					else if(strstr(a->value, JANUS_RTP_EXTMAP_VIDEO_ORIENTATION))
-						videoorientation_ext_id = atoi(a->value);
-					else if(strstr(a->value, JANUS_RTP_EXTMAP_RID) ||
-							strstr(a->value, JANUS_RTP_EXTMAP_REPAIRED_RID)) {
-						m->attributes = g_list_remove(m->attributes, a);
-						tempA = m->attributes;
-						janus_sdp_attribute_destroy(a);
-						continue;
+ 					if(!strcasecmp(a->name, "extmap")) {
+						if(strstr(a->value, JANUS_RTP_EXTMAP_MID))
+							mid_ext_id = atoi(a->value);
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_TRANSPORT_WIDE_CC))
+							transport_wide_cc_ext_id = atoi(a->value);
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_ABS_SEND_TIME))
+							abs_send_time_ext_id = atoi(a->value);
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_AUDIO_LEVEL))
+							audiolevel_ext_id = atoi(a->value);
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_VIDEO_ORIENTATION))
+							videoorientation_ext_id = atoi(a->value);
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_PLAYOUT_DELAY))
+							playoutdelay_ext_id = atoi(a->value);
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_DEPENDENCY_DESC))
+							dependencydesc_ext_id = atoi(a->value);
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_RID) ||
+								strstr(a->value, JANUS_RTP_EXTMAP_REPAIRED_RID)) {
+							m->attributes = g_list_remove(m->attributes, a);
+							tempA = m->attributes;
+							janus_sdp_attribute_destroy(a);
+							continue;
+						}
+					} else if(m->type == JANUS_SDP_AUDIO && !strcasecmp(a->name, "rtpmap") &&
+							strstr(a->value, "red/48000/2")) {
+						opusred_pt = atoi(a->value);
 					}
 				}
 				tempA = tempA->next;
 			}
+			/* If the plugin offered RED, take note of it */
+			if(ice_handle->stream)
+				ice_handle->stream->opusred_pt = opusred_pt;
 			temp = temp->next;
 		}
 		if(ice_handle->stream && ice_handle->stream->mid_ext_id != mid_ext_id)
@@ -3941,30 +4012,45 @@ json_t *janus_plugin_handle_sdp(janus_plugin_session *plugin_session, janus_plug
 			ice_handle->stream->audiolevel_ext_id = audiolevel_ext_id;
 		if(ice_handle->stream && ice_handle->stream->videoorientation_ext_id != videoorientation_ext_id)
 			ice_handle->stream->videoorientation_ext_id = videoorientation_ext_id;
+		if(ice_handle->stream && ice_handle->stream->playoutdelay_ext_id != playoutdelay_ext_id)
+			ice_handle->stream->playoutdelay_ext_id = playoutdelay_ext_id;
+		if(ice_handle->stream && ice_handle->stream->dependencydesc_ext_id != dependencydesc_ext_id)
+			ice_handle->stream->dependencydesc_ext_id = dependencydesc_ext_id;
 	} else {
 		/* Check if the answer does contain the mid/rid/repaired-rid/abs-send-time/twcc extmaps */
 		gboolean do_mid = FALSE, do_rid = FALSE, do_repaired_rid = FALSE,
-			do_twcc = FALSE, do_abs_send_time = FALSE;
+			do_dd = FALSE, do_twcc = FALSE, do_abs_send_time = FALSE;
+		int opusred_pt = -1;
 		GList *temp = parsed_sdp->m_lines;
 		while(temp) {
 			janus_sdp_mline *m = (janus_sdp_mline *)temp->data;
 			GList *tempA = m->attributes;
 			while(tempA) {
 				janus_sdp_attribute *a = (janus_sdp_attribute *)tempA->data;
-				if(a->name && a->value && !strcasecmp(a->name, "extmap")) {
-					if(strstr(a->value, JANUS_RTP_EXTMAP_MID))
-						do_mid = TRUE;
-					else if(strstr(a->value, JANUS_RTP_EXTMAP_RID))
-						do_rid = TRUE;
-					else if(strstr(a->value, JANUS_RTP_EXTMAP_REPAIRED_RID))
-						do_repaired_rid = TRUE;
-					else if(strstr(a->value, JANUS_RTP_EXTMAP_TRANSPORT_WIDE_CC))
-						do_twcc = TRUE;
-					else if(strstr(a->value, JANUS_RTP_EXTMAP_ABS_SEND_TIME))
-						do_abs_send_time = TRUE;
+				if(a->name && a->value) {
+					if(!strcasecmp(a->name, "extmap")) {
+						if(strstr(a->value, JANUS_RTP_EXTMAP_MID))
+							do_mid = TRUE;
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_RID))
+							do_rid = TRUE;
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_REPAIRED_RID))
+							do_repaired_rid = TRUE;
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_TRANSPORT_WIDE_CC))
+							do_twcc = TRUE;
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_DEPENDENCY_DESC))
+							do_dd = TRUE;
+						else if(strstr(a->value, JANUS_RTP_EXTMAP_ABS_SEND_TIME))
+							do_abs_send_time = TRUE;
+					} else if(m->type == JANUS_SDP_AUDIO && ice_handle->stream && ice_handle->stream->opusred_pt > 0 &&
+							!strcasecmp(a->name, "rtpmap") && strstr(a->value, "red/48000/2")) {
+						opusred_pt = atoi(a->value);
+					}
 				}
 				tempA = tempA->next;
 			}
+			/* If the user offered RED but the plugin rejected it, disable it */
+			if(ice_handle->stream && ice_handle->stream->opusred_pt > 0 && opusred_pt < 0)
+				ice_handle->stream->opusred_pt = 0;
 			temp = temp->next;
 		}
 		if(!do_mid && ice_handle->stream)
@@ -3989,6 +4075,8 @@ json_t *janus_plugin_handle_sdp(janus_plugin_session *plugin_session, janus_plug
 			ice_handle->stream->do_transport_wide_cc = FALSE;
 			ice_handle->stream->transport_wide_cc_ext_id = 0;
 		}
+		if(!do_dd && ice_handle->stream)
+			ice_handle->stream->dependencydesc_ext_id = 0;
 		if(!do_abs_send_time && ice_handle->stream)
 			ice_handle->stream->abs_send_time_ext_id = 0;
 	}
@@ -4287,6 +4375,10 @@ void janus_plugin_notify_event(janus_plugin *plugin, janus_plugin_session *plugi
 	}
 }
 
+gboolean janus_plugin_auth_is_signed(void) {
+	return janus_auth_is_signed_mode();
+}
+
 gboolean janus_plugin_auth_is_signature_valid(janus_plugin *plugin, const char *token) {
 	return janus_auth_check_signature(token, plugin->get_package());
 }
@@ -4486,6 +4578,11 @@ gint main(int argc, char *argv[])
 		server_name = g_strdup(item->value);
 	}
 
+	/* Check if we should exit immediately on dlopen or dlsym errors */
+	item = janus_config_get(config, config_general, janus_config_type_item, "exit_on_dl_error");
+	if(item && item->value && janus_is_true(item->value))
+		exit_on_dl_error = TRUE;
+
 	/* Initialize logger */
 	if(janus_log_init(daemonize, use_stdout, logfile) < 0)
 		exit(1);
@@ -4545,12 +4642,16 @@ gint main(int argc, char *argv[])
 			g_snprintf(eventpath, 1024, "%s/%s", path, eventent->d_name);
 			void *event = dlopen(eventpath, RTLD_NOW | RTLD_GLOBAL);
 			if (!event) {
-				JANUS_LOG(LOG_ERR, "\tCouldn't load logger plugin '%s': %s\n", eventent->d_name, dlerror());
+				JANUS_LOG(exit_on_dl_error ? LOG_FATAL : LOG_ERR, "\tCouldn't load logger plugin '%s': %s\n", eventent->d_name, dlerror());
+				if (exit_on_dl_error)
+					exit(1);
 			} else {
 				create_l *create = (create_l*) dlsym(event, "create");
 				const char *dlsym_error = dlerror();
 				if (dlsym_error) {
-					JANUS_LOG(LOG_ERR, "\tCouldn't load symbol 'create': %s\n", dlsym_error);
+					JANUS_LOG(exit_on_dl_error ? LOG_FATAL : LOG_ERR, "\tCouldn't load symbol 'create': %s\n", dlsym_error);
+					if (exit_on_dl_error)
+						exit(1);
 					continue;
 				}
 				janus_logger *janus_logger = create();
@@ -5095,6 +5196,11 @@ gint main(int argc, char *argv[])
 		}
 	}
 #endif
+	item = janus_config_get(config, config_nat, janus_config_type_item, "allow_force_relay");
+	if(item && item->value && janus_is_true(item->value)) {
+		JANUS_LOG(LOG_WARN, "Note: applications/users will be allowed to force Janus to use TURN. Make sure you know what you're doing!\n");
+		janus_ice_allow_force_relay();
+	}
 	/* Do we need a limited number of static event loops, or is it ok to have one per handle (the default)? */
 	item = janus_config_get(config, config_general, janus_config_type_item, "event_loops");
 	if(item && item->value)
@@ -5382,6 +5488,13 @@ gint main(int argc, char *argv[])
 					JANUS_LOG(LOG_INFO, "Setting event handlers statistics period to %d seconds\n", period);
 				}
 			}
+			item = janus_config_get(config, config_events, janus_config_type_item, "combine_media_stats");
+			if(item && item->value) {
+				gboolean combine = janus_is_true(item->value);
+				janus_ice_event_set_combine_media_stats(combine);
+				if(combine)
+					JANUS_LOG(LOG_INFO, "Event handler configured to send media stats combined in a single event\n");
+			}
 			/* Any event handlers to ignore? */
 			item = janus_config_get(config, config_events, janus_config_type_item, "disable");
 			if(item && item->value)
@@ -5423,12 +5536,16 @@ gint main(int argc, char *argv[])
 				g_snprintf(eventpath, 1024, "%s/%s", path, eventent->d_name);
 				void *event = dlopen(eventpath, RTLD_NOW | RTLD_GLOBAL);
 				if (!event) {
-					JANUS_LOG(LOG_ERR, "\tCouldn't load event handler plugin '%s': %s\n", eventent->d_name, dlerror());
+					JANUS_LOG(exit_on_dl_error ? LOG_FATAL : LOG_ERR, "\tCouldn't load event handler plugin '%s': %s\n", eventent->d_name, dlerror());
+					if (exit_on_dl_error)
+						exit(1);
 				} else {
 					create_e *create = (create_e*) dlsym(event, "create");
 					const char *dlsym_error = dlerror();
 					if (dlsym_error) {
-						JANUS_LOG(LOG_ERR, "\tCouldn't load symbol 'create': %s\n", dlsym_error);
+						JANUS_LOG(exit_on_dl_error ? LOG_FATAL : LOG_ERR, "\tCouldn't load symbol 'create': %s\n", dlsym_error);
+						if (exit_on_dl_error)
+							exit(1);
 						continue;
 					}
 					janus_eventhandler *janus_eventhandler = create();
@@ -5551,12 +5668,16 @@ gint main(int argc, char *argv[])
 		g_snprintf(pluginpath, 1024, "%s/%s", path, pluginent->d_name);
 		void *plugin = dlopen(pluginpath, RTLD_NOW | RTLD_GLOBAL);
 		if (!plugin) {
-			JANUS_LOG(LOG_ERR, "\tCouldn't load plugin '%s': %s\n", pluginent->d_name, dlerror());
+			JANUS_LOG(exit_on_dl_error ? LOG_FATAL : LOG_ERR, "\tCouldn't load plugin '%s': %s\n", pluginent->d_name, dlerror());
+			if (exit_on_dl_error)
+				exit(1);
 		} else {
 			create_p *create = (create_p*) dlsym(plugin, "create");
 			const char *dlsym_error = dlerror();
 			if (dlsym_error) {
-				JANUS_LOG(LOG_ERR, "\tCouldn't load symbol 'create': %s\n", dlsym_error);
+				JANUS_LOG(exit_on_dl_error ? LOG_FATAL : LOG_ERR, "\tCouldn't load symbol 'create': %s\n", dlsym_error);
+				if (exit_on_dl_error)
+					exit(1);
 				continue;
 			}
 			janus_plugin *janus_plugin = create();
@@ -5670,12 +5791,16 @@ gint main(int argc, char *argv[])
 		g_snprintf(transportpath, 1024, "%s/%s", path, transportent->d_name);
 		void *transport = dlopen(transportpath, RTLD_NOW | RTLD_GLOBAL);
 		if (!transport) {
-			JANUS_LOG(LOG_ERR, "\tCouldn't load transport plugin '%s': %s\n", transportent->d_name, dlerror());
+			JANUS_LOG(exit_on_dl_error ? LOG_FATAL : LOG_ERR, "\tCouldn't load transport plugin '%s': %s\n", transportent->d_name, dlerror());
+			if (exit_on_dl_error)
+				exit(1);
 		} else {
 			create_t *create = (create_t*) dlsym(transport, "create");
 			const char *dlsym_error = dlerror();
 			if (dlsym_error) {
-				JANUS_LOG(LOG_ERR, "\tCouldn't load symbol 'create': %s\n", dlsym_error);
+				JANUS_LOG(exit_on_dl_error ? LOG_FATAL : LOG_ERR, "\tCouldn't load symbol 'create': %s\n", dlsym_error);
+				if (exit_on_dl_error)
+					exit(1);
 				continue;
 			}
 			janus_transport *janus_transport = create();

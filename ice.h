@@ -89,6 +89,11 @@ uint16_t janus_ice_get_turn_port(void);
 /*! \brief Method to get the specified TURN REST API backend, if any
  * @returns The currently specified  TURN REST API backend, if available, or NULL if not */
 char *janus_ice_get_turn_rest_api(void);
+/*! \brief Method to enable applications to force Janus to use TURN */
+void janus_ice_allow_force_relay(void);
+/*! \brief Method to check whether applications are allowed to force Janus to use TURN
+ * @returns TRUE if they're allowed, FALSE otherwise */
+gboolean janus_ice_is_force_relay_allowed(void);
 /*! \brief Helper method to force Janus to overwrite all host candidates with the public IP
  * @param[in] keep_private_host Whether we should keep the original private host as a separate candidate, or replace it */
 void janus_ice_enable_nat_1_1(gboolean keep_private_host);
@@ -196,6 +201,14 @@ void janus_ice_set_event_stats_period(int period);
 /*! \brief Method to get the current event handler statistics period (see above)
  * @returns The current event handler stats period */
 int janus_ice_get_event_stats_period(void);
+
+/*! \brief Method to define wether the media stats shall be dispatched in one event (true) or in dedicated single events (false - default)
+ * @param[in] combine_media_stats_to_one_event true to combine media statistics in on event or false to send dedicated events */
+void janus_ice_event_set_combine_media_stats(gboolean combine_media_stats_to_one_event);
+/*! \brief Method to retrieve wether media statistic events shall be dispatched combined or in single events
+ * @returns true to combine events */
+gboolean janus_ice_event_get_combine_media_stats(void);
+
 /*! \brief Method to check whether libnice debugging has been enabled (http://nice.freedesktop.org/libnice/libnice-Debug-messages.html)
  * @returns True if libnice debugging is enabled, FALSE otherwise */
 gboolean janus_ice_is_ice_debugging_enabled(void);
@@ -333,6 +346,8 @@ struct janus_ice_handle {
 	GMainContext *mainctx;
 	/*! \brief GLib loop for the handle and libnice */
 	GMainLoop *mainloop;
+	/*! \brief In case static event loops are used, opaque pointer to the loop */
+	void *static_event_loop;
 	/*! \brief GLib thread for the handle and libnice */
 	GThread *thread;
 	/*! \brief GLib sources for outgoing traffic, recurring RTCP, and stats (and optionally TWCC) */
@@ -409,8 +424,10 @@ struct janus_ice_stream {
 	guint32 video_ssrc_peer[3], video_ssrc_peer_new[3], video_ssrc_peer_orig[3], video_ssrc_peer_temp;
 	/*! \brief Video retransmissions SSRC(s) of the peer for this stream */
 	guint32 video_ssrc_peer_rtx[3], video_ssrc_peer_rtx_new[3], video_ssrc_peer_rtx_orig[3];
-	/*! \brief Array of RTP Stream IDs (for Firefox simulcasting, if enabled) */
+	/*! \brief Array of RTP Stream IDs (for simulcasting, if enabled) */
 	char *rid[3];
+	/*! \brief Which simulcast rids are currently disabled, as per the latest negotiation */
+	gboolean disabled_rid[3];
 	/*! \brief Whether the order of the rids in the SDP will be h-m-l (TRUE) or l-m-h (FALSE) */
 	gboolean rids_hml;
 	/*! \brief Whether we should use the legacy simulcast syntax (a=simulcast:recv rid=..) or the proper one (a=simulcast:recv ..) */
@@ -423,6 +440,8 @@ struct janus_ice_stream {
 	GList *video_payload_types;
 	/*! \brief Mapping of rtx payload types to actual media-related packet types */
 	GHashTable *rtx_payload_types;
+	/*! \brief opus/red payload type, if enabled */
+	int opusred_pt;
 	/*! \brief Mapping of payload types to their clock rates, as advertised in the SDP */
 	GHashTable *clock_rates;
 	/*! \brief RTP payload types of this stream */
@@ -437,6 +456,8 @@ struct janus_ice_stream {
 	janus_rtcp_context *audio_rtcp_ctx;
 	/*! \brief RTCP context(s) for the video stream (may be simulcasting) */
 	janus_rtcp_context *video_rtcp_ctx[3];
+	/*! \brief Latest REMB feedback we received */
+	uint32_t remb_bitrate;
 	/*! \brief Size of the NACK queue (in ms), dynamically updated per the RTT */
 	uint16_t nack_queue_ms;
 	/*! \brief Map(s) of the NACKed packets (to track retransmissions and avoid duplicates) */
@@ -467,6 +488,10 @@ struct janus_ice_stream {
 	gint audiolevel_ext_id;
 	/*! \brief Video orientation extension ID */
 	gint videoorientation_ext_id;
+	/*! \brief Playout delay extension ID */
+	gint playoutdelay_ext_id;
+	/*! \brief Dependency descriptor extension ID */
+	gint dependencydesc_ext_id;
 	/*! \brief Absolute Send Time ext ID */
 	gint abs_send_time_ext_id;
 	/*! \brief Whether we do transport wide cc for video */
@@ -622,8 +647,10 @@ janus_ice_handle *janus_ice_handle_create(void *core_session, const char *opaque
  * @param[in] core_session The core/peer session this ICE handle belongs to
  * @param[in] handle The Janus ICE handle
  * @param[in] plugin The plugin the ICE handle needs to be attached to
+ * @param[in] loop_index In case static event loops are used, an indication on which loop to use for this handle
+ * (-1 will let the core pick one; in case API selection is disabled in the settings, this value is ignored)
  * @returns 0 in case of success, a negative integer otherwise */
-gint janus_ice_handle_attach_plugin(void *core_session, janus_ice_handle *handle, janus_plugin *plugin);
+gint janus_ice_handle_attach_plugin(void *core_session, janus_ice_handle *handle, janus_plugin *plugin, int loop_index);
 /*! \brief Method to destroy a Janus ICE handle
  * @param[in] core_session The core/peer session this ICE handle belongs to
  * @param[in] handle The Janus ICE handle to destroy
@@ -680,6 +707,9 @@ void janus_ice_relay_sctp(janus_ice_handle *handle, char *buffer, int length);
 /*! \brief Plugin SCTP/DataChannel callback, called by the SCTP stack when data can be written
  * @param[in] handle The Janus ICE handle associated with the peer */
 void janus_ice_notify_data_ready(janus_ice_handle *handle);
+/*! \brief Core SDP callback, called by the SDP stack when a stream has been paused by a negotiation
+ * @param[in] handle The Janus ICE handle associated with the peer */
+void janus_ice_notify_media_stopped(janus_ice_handle *handle);
 ///@}
 
 
@@ -727,11 +757,19 @@ void janus_ice_resend_trickles(janus_ice_handle *handle);
 /*! \brief Method to configure the static event loops mechanism at startup
  * @note Check the \c event_loops property in the \c janus.jcfg configuration
  * for an explanation of this feature, and the possible impact on Janus and users
- * @param[in] loops The number of static event loops to start (0 to disable the feature) */
-void janus_ice_set_static_event_loops(int loops);
+ * @param[in] loops The number of static event loops to start (0 to disable the feature)
+ * @param[in] allow_api Whether allocation on a specific loop driven via API should be allowed or not (false by default) */
+void janus_ice_set_static_event_loops(int loops, gboolean allow_api);
 /*! \brief Method to return the number of static event loops, if enabled
  * @returns The number of static event loops, if configured, or 0 if the feature is disabled */
 int janus_ice_get_static_event_loops(void);
+/*! \brief Method to check whether loop indication via API is allowed
+ * @returns true if allowed, false otherwise */
+gboolean janus_ice_is_loop_indication_allowed(void);
+/*! \brief Helper method to return a summary of the static loops activity
+ * @note This is only used by the Admin API
+ * @returns a json_t array with the required info */
+json_t *janus_ice_static_event_loops_info(void);
 /*! \brief Method to stop all the static event loops, if enabled
  * @note This will wait for the related threads to exit, and so may delay the shutdown process */
 void janus_ice_stop_static_event_loops(void);

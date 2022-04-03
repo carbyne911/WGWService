@@ -135,6 +135,7 @@
 	"audiocodec" : "<name of the audio codec we prefer for the recording; optional>",
 	"videocodec" : "<name of the video codec we prefer for the recording; optional>",
 	"videoprofile" : "<in case the video codec supports, profile to use (e.g., "2" for VP9, or "42e01f" for H.264); optional>",
+	"opusred" : <true|false, whether RED should be negotiated for audio, if offered; optional (default=false)>,
 	"textdata" : "<in case data channels have to be recorded, whether the data will be text (default) or binary; optional>"
 }
 \endverbatim
@@ -359,6 +360,7 @@ static struct janus_json_parameter record_parameters[] = {
 	{"audiocodec", JSON_STRING, 0},
 	{"videocodec", JSON_STRING, 0},
 	{"videoprofile", JSON_STRING, 0},
+	{"opusred", JANUS_JSON_BOOL, 0},
 	{"textdata", JANUS_JSON_BOOL, 0},
 	{"update", JANUS_JSON_BOOL, 0}
 };
@@ -406,11 +408,12 @@ typedef struct janus_recordplay_recording {
 	char *arc_file;				/* Audio file name */
 	janus_audiocodec acodec;	/* Codec used for audio, if available */
 	char *afmtp;				/* Audio fmtp, if any */
-	int audio_pt;				/* Payload types to use for audio when playing recordings */
+	int audio_pt;				/* Payload type to use for audio when playing recordings */
+	int opusred_pt;				/* In case RED is used for audio, payload type to use in playback */
 	char *vrc_file;				/* Video file name */
 	janus_videocodec vcodec;	/* Codec used for video, if available */
 	char *vfmtp;				/* Video fmtp, if any */
-	int video_pt;				/* Payload types to use for audio when playing recordings */
+	int video_pt;				/* Payload type to use for video when playing recordings */
 	guint8 audiolevel_ext_id;	/* Audio level extmap ID */
 	guint8 videoorient_ext_id;	/* Video orientation extmap ID */
 	char *drc_file;				/* Data file name */
@@ -418,6 +421,7 @@ typedef struct janus_recordplay_recording {
 	char *offer;				/* The SDP offer that will be sent to watchers */
 	gboolean e2ee;				/* Whether media in the recording is encrypted, e.g., using Insertable Streams */
 	GList *viewers;				/* List of users watching this recording */
+	volatile gint paused;		/* Whether this recording is paused */
 	volatile gint completed;	/* Whether this recording was completed or still going on */
 	volatile gint destroyed;	/* Whether this recording has been marked as destroyed */
 	janus_refcount ref;			/* Reference counter */
@@ -442,6 +446,7 @@ typedef struct janus_recordplay_session {
 	janus_recordplay_frame_packet *aframes;	/* Audio frames (for playout) */
 	janus_recordplay_frame_packet *vframes;	/* Video frames (for playout) */
 	janus_recordplay_frame_packet *dframes;	/* Data packets (for playout) */
+	gboolean opusred;		/* Whether this user supports RED for audio (for playout) */
 	gboolean textdata;		/* Whether data format is text */
 	guint video_remb_startup;
 	gint64 video_remb_last;
@@ -510,7 +515,7 @@ void janus_recordplay_send_rtcp_feedback(janus_plugin_session *handle, int video
 
 /* Helper method to check which codec was used in a specific recording (and if it's end-to-end encrypted) */
 static const char *janus_recordplay_parse_codec(const char *dir, const char *filename, char *fmtp, size_t fmtplen,
-		uint8_t *audiolevel_ext_id, uint8_t *videoorient_ext_id, gboolean *e2ee) {
+		uint8_t *audiolevel_ext_id, uint8_t *videoorient_ext_id, int *opusred_pt, gboolean *e2ee) {
 	if(dir == NULL || filename == NULL)
 		return NULL;
 	if(e2ee)
@@ -632,6 +637,9 @@ static const char *janus_recordplay_parse_codec(const char *dir, const char *fil
 					fclose(file);
 					return NULL;
 				}
+				/* Is RED in use for audio? */
+				if(!video && !data)
+					*opusred_pt = json_integer_value(json_object_get(info, "or"));
 				/* Any RTP extension we care about? */
 				json_t *exts = json_object_get(info, "x");
 				if(exts && !data) {
@@ -711,6 +719,7 @@ static int janus_recordplay_generate_offer(janus_recordplay_recording *rec) {
 		JANUS_SDP_OA_AUDIO_DIRECTION, JANUS_SDP_SENDONLY,
 		JANUS_SDP_OA_AUDIO_EXTENSION, JANUS_RTP_EXTMAP_MID, mid_ext_id,
 		JANUS_SDP_OA_AUDIO_EXTENSION, JANUS_RTP_EXTMAP_AUDIO_LEVEL, rec->audiolevel_ext_id,
+		JANUS_SDP_OA_OPUSRED_PT, rec->opusred_pt > 0 ? rec->opusred_pt : 0,
 		JANUS_SDP_OA_VIDEO, offer_video,
 		JANUS_SDP_OA_VIDEO_CODEC, janus_videocodec_name(rec->vcodec),
 		JANUS_SDP_OA_VIDEO_FMTP, rec->vfmtp,
@@ -1065,6 +1074,8 @@ struct janus_plugin_result *janus_recordplay_handle_message(janus_plugin_session
 			json_object_set_new(ml, "audio", rec->arc_file ? json_true() : json_false());
 			if(rec->acodec != JANUS_AUDIOCODEC_NONE)
 				json_object_set_new(ml, "audio_codec", json_string(janus_audiocodec_name(rec->acodec)));
+			if(rec->opusred_pt > 0)
+				json_object_set_new(ml, "audio_red", json_true());
 			json_object_set_new(ml, "video", rec->vrc_file ? json_true() : json_false());
 			if(rec->vcodec != JANUS_VIDEOCODEC_NONE)
 				json_object_set_new(ml, "video_codec", json_string(janus_videocodec_name(rec->vcodec)));
@@ -1104,7 +1115,8 @@ struct janus_plugin_result *janus_recordplay_handle_message(janus_plugin_session
 		json_object_set_new(response, "settings", settings);
 		goto plugin_response;
 	} else if(!strcasecmp(request_text, "record") || !strcasecmp(request_text, "play")
-			|| !strcasecmp(request_text, "start") || !strcasecmp(request_text, "stop")) {
+			|| !strcasecmp(request_text, "start") || !strcasecmp(request_text, "stop")
+			|| !strcasecmp(request_text, "pause") || !strcasecmp(request_text, "resume")) {
 		/* These messages are handled asynchronously */
 		janus_recordplay_message *msg = g_malloc(sizeof(janus_recordplay_message));
 		msg->handle = handle;
@@ -1478,6 +1490,7 @@ static void janus_recordplay_hangup_media_internal(janus_plugin_session *handle)
 	}
 	g_free(session->video_profile);
 	session->video_profile = NULL;
+	session->opusred = FALSE;
 	g_atomic_int_set(&session->hangingup, 0);
 }
 
@@ -1569,6 +1582,7 @@ static void *janus_recordplay_handler(void *data) {
 			json_t *videocodec = json_object_get(root, "videocodec");
 			json_t *videoprofile = json_object_get(root, "videoprofile");
 			json_t *dotextdata = json_object_get(root, "textdata");
+			json_t *opusred = json_object_get(root, "opusred");
 			json_t *update = json_object_get(root, "update");
 			gboolean do_update = update ? json_is_true(update) : FALSE;
 			if(do_update && !sdp_update) {
@@ -1634,6 +1648,7 @@ static void *janus_recordplay_handler(void *data) {
 			rec->acodec = JANUS_AUDIOCODEC_NONE;
 			rec->vcodec = JANUS_VIDEOCODEC_NONE;
 			rec->e2ee = e2ee;
+			g_atomic_int_set(&rec->paused, 0);
 			g_atomic_int_set(&rec->destroyed, 0);
 			g_atomic_int_set(&rec->completed, 0);
 			janus_refcount_init(&rec->ref, janus_recordplay_recording_free);
@@ -1696,6 +1711,9 @@ static void *janus_recordplay_handler(void *data) {
 					rec->audio_pt = 8;
 				else if(rec->acodec == JANUS_AUDIOCODEC_G722)
 					rec->audio_pt = 9;
+				/* Check if RED was offered */
+				if(json_is_true(opusred) && rec->acodec == JANUS_AUDIOCODEC_OPUS)
+					rec->opusred_pt = janus_sdp_get_opusred_pt(offer);
 			}
 			rec->video_pt = VIDEO_PT;
 			/* Check if relevant extensions are negotiated */
@@ -1741,6 +1759,9 @@ static void *janus_recordplay_handler(void *data) {
 				/* If the audio-level extension has been negotiated, mark it in the recording */
 				if(rec->audiolevel_ext_id > 0)
 					janus_recorder_add_extmap(rc, rec->audiolevel_ext_id, JANUS_RTP_EXTMAP_AUDIO_LEVEL);
+				/* If RED is in use, take note of it */
+				if(rec->opusred_pt > 0)
+					janus_recorder_opusred(rc, rec->opusred_pt);
 				/* If media is encrypted, mark it in the recording */
 				if(e2ee)
 					janus_recorder_encrypted(rc);
@@ -1792,6 +1813,7 @@ recdone:
 				JANUS_SDP_OA_AUDIO, audio,
 				JANUS_SDP_OA_AUDIO_CODEC, janus_audiocodec_name(rec->acodec),
 				JANUS_SDP_OA_AUDIO_DIRECTION, JANUS_SDP_RECVONLY,
+				JANUS_SDP_OA_ACCEPT_OPUSRED, rec->opusred_pt > 0,
 				JANUS_SDP_OA_VIDEO, video,
 				JANUS_SDP_OA_VIDEO_CODEC, janus_videocodec_name(rec->vcodec),
 				JANUS_SDP_OA_VP9_PROFILE, session->video_profile,
@@ -1942,6 +1964,8 @@ recdone:
 				g_snprintf(error_cause, 512, "Error opening recording files");
 				goto error;
 			}
+			if(rec->opusred_pt > 0)
+				session->opusred = TRUE;	/* Assume the user does support RED, if it's in the recording */
 			session->recording = rec;
 			session->recorder = FALSE;
 			rec->viewers = g_list_append(rec->viewers, session);
@@ -1980,6 +2004,8 @@ playdone:
 				g_snprintf(error_cause, 512, "Missing SDP answer");
 				goto error;
 			}
+			if(session->opusred && strstr(msg_sdp, "red/48000/2") == NULL)
+				session->opusred = FALSE;
 			/* Done! */
 			result = json_object();
 			json_object_set_new(result, "status", json_string("playing"));
@@ -2007,6 +2033,35 @@ playdone:
 			}
 			/* Tell the core to tear down the PeerConnection, hangup_media will do the rest */
 			gateway->close_pc(session->handle);
+		} else if (!strcasecmp(request_text, "pause") || !strcasecmp(request_text, "resume")) {
+			JANUS_LOG(LOG_VERB, "Record&Play: Got pause/resume request\n");
+			if(session->recording) {
+				gboolean pause = !strcasecmp(request_text, "pause");
+				result = json_object();
+				json_object_set_new(result, "status", json_string(pause ? "paused" : "resumed"));
+				json_object_set_new(result, "id", json_integer(session->recording->id));
+				/* Also notify event handlers */
+				if(notify_events && gateway->events_is_enabled()) {
+					json_t *info = json_object();
+					json_object_set_new(info, "event", json_string(pause ? "paused" : "resumed"));
+					json_object_set_new(info, "id", json_integer(session->recording->id));
+					gateway->notify_event(&janus_recordplay_plugin, session->handle, info);
+				}
+				if (g_atomic_int_compare_and_exchange(&session->recording->paused, !pause, pause)) {
+					if(pause) {
+						janus_recorder_pause(session->arc);
+						janus_recorder_pause(session->vrc);
+						janus_recorder_pause(session->drc);
+					} else {
+						janus_recorder_resume(session->arc);
+						janus_recorder_resume(session->vrc);
+						janus_recorder_resume(session->drc);
+						gateway->send_pli(session->handle);
+					}
+				}
+			} else {
+				JANUS_LOG(LOG_VERB, "Record&Play: Not recording, ignoring pause/resume request\n");
+			}
 		} else {
 			JANUS_LOG(LOG_ERR, "Unknown request '%s'\n", request_text);
 			error_code = JANUS_RECORDPLAY_ERROR_INVALID_REQUEST;
@@ -2157,7 +2212,7 @@ void janus_recordplay_update_recordings_list(void) {
 			char fmtp[256];
 			fmtp[0] = '\0';
 			rec->acodec = janus_audiocodec_from_name(janus_recordplay_parse_codec(recordings_path,
-				rec->arc_file, fmtp, sizeof(fmtp), &rec->audiolevel_ext_id, NULL, &e2ee));
+				rec->arc_file, fmtp, sizeof(fmtp), &rec->audiolevel_ext_id, NULL, &rec->opusred_pt, &e2ee));
 			if(strlen(fmtp) > 0)
 				rec->afmtp = g_strdup(fmtp);
 			if(e2ee)
@@ -2173,7 +2228,7 @@ void janus_recordplay_update_recordings_list(void) {
 			char fmtp[256];
 			fmtp[0] = '\0';
 			rec->vcodec = janus_videocodec_from_name(janus_recordplay_parse_codec(recordings_path,
-				rec->vrc_file, fmtp, sizeof(fmtp), NULL, &rec->videoorient_ext_id, &e2ee));
+				rec->vrc_file, fmtp, sizeof(fmtp), NULL, &rec->videoorient_ext_id, NULL, &e2ee));
 			if(strlen(fmtp) > 0)
 				rec->vfmtp = g_strdup(fmtp);
 			if(e2ee)
@@ -2185,10 +2240,12 @@ void janus_recordplay_update_recordings_list(void) {
 			if(ext != NULL)
 				*ext = '\0';
 			const char *textcodec = janus_recordplay_parse_codec(recordings_path,
-				rec->drc_file, NULL, sizeof(NULL), NULL, NULL, NULL);
+				rec->drc_file, NULL, sizeof(NULL), NULL, NULL, NULL, NULL);
 			rec->textdata = textcodec && (!strcasecmp(textcodec, "text"));
 		}
 		rec->audio_pt = AUDIO_PT;
+		if(rec->opusred_pt > 0 && rec->audio_pt == rec->opusred_pt)
+			rec->audio_pt++;
 		if(rec->acodec != JANUS_AUDIOCODEC_NONE) {
 			/* Some audio codecs have a fixed payload type that we can't mess with */
 			if(rec->acodec == JANUS_AUDIOCODEC_PCMU)
@@ -2203,6 +2260,7 @@ void janus_recordplay_update_recordings_list(void) {
 		if(janus_recordplay_generate_offer(rec) < 0) {
 			JANUS_LOG(LOG_WARN, "Could not generate offer for recording %"SCNu64"...\n", rec->id);
 		}
+		g_atomic_int_set(&rec->paused, 0);
 		g_atomic_int_set(&rec->destroyed, 0);
 		g_atomic_int_set(&rec->completed, 1);
 		janus_refcount_init(&rec->ref, janus_recordplay_recording_free);
@@ -2612,7 +2670,7 @@ static void *janus_recordplay_playout_thread(void *sessiondata) {
 		g_thread_unref(g_thread_self());
 		return NULL;
 	}
-	JANUS_LOG(LOG_INFO, "Joining playout thread\n");
+	JANUS_LOG(LOG_VERB, "Joining playout thread\n");
 	/* Open the files */
 	FILE *afile = NULL, *vfile = NULL, *dfile = NULL;
 	if(session->aframes) {
@@ -2710,7 +2768,27 @@ static void *janus_recordplay_playout_thread(void *sessiondata) {
 					JANUS_LOG(LOG_WARN, "Didn't manage to read all the bytes we needed (%d < %d)...\n", bytes, audio->len);
 				/* Update payload type */
 				janus_rtp_header *rtp = (janus_rtp_header *)buffer;
-				rtp->type = audio_pt;
+				if(rec->opusred_pt == 0 || rtp->type != rec->opusred_pt)
+					rtp->type = audio_pt;
+				/* If the recording contains RED but the user doesn't support it, only use the primary data */
+				if(rec->opusred_pt > 0 && rtp->type == rec->opusred_pt && !session->opusred) {
+					int plen = 0;
+					char *payload = janus_rtp_payload(buffer, bytes, &plen);
+					if(payload && plen > 0) {
+						GList *blocks = janus_red_parse_blocks(payload, plen);
+						if(blocks != NULL) {
+							/* Copy the last block (primary data) to the RTP payload */
+							GList *last = g_list_last(blocks);
+							janus_red_block *rb = (janus_red_block *)(last ? last->data : NULL);
+							if(rb && rb->data && rb->length > 0) {
+								rtp->type = audio_pt;
+								bytes -= (plen - rb->length);
+								memmove(payload, rb->data, rb->length);
+							}
+							g_list_free_full(blocks, (GDestroyNotify)g_free);
+						}
+					}
+				}
 				janus_plugin_rtp prtp = { .video = FALSE, .buffer = (char *)buffer, .length = bytes };
 				janus_plugin_rtp_extensions_reset(&prtp.extensions);
 				gateway->relay_rtp(session->handle, &prtp);
@@ -2752,7 +2830,27 @@ static void *janus_recordplay_playout_thread(void *sessiondata) {
 						JANUS_LOG(LOG_WARN, "Didn't manage to read all the bytes we needed (%d < %d)...\n", bytes, audio->len);
 					/* Update payload type */
 					janus_rtp_header *rtp = (janus_rtp_header *)buffer;
-					rtp->type = audio_pt;
+					if(rec->opusred_pt == 0 || rtp->type != rec->opusred_pt)
+						rtp->type = audio_pt;
+					/* If the recording contains RED but the user doesn't support it, only use the primary data */
+					if(rec->opusred_pt > 0 && rtp->type == rec->opusred_pt && !session->opusred) {
+						int plen = 0;
+						char *payload = janus_rtp_payload(buffer, bytes, &plen);
+						if(payload && plen > 0) {
+							GList *blocks = janus_red_parse_blocks(payload, plen);
+							if(blocks != NULL) {
+								/* Copy the last block (primary data) to the RTP payload */
+								GList *last = g_list_last(blocks);
+								janus_red_block *rb = (janus_red_block *)(last ? last->data : NULL);
+								if(rb && rb->data && rb->length > 0) {
+									rtp->type = audio_pt;
+									bytes -= (plen - rb->length);
+									memmove(payload, rb->data, rb->length);
+								}
+								g_list_free_full(blocks, (GDestroyNotify)g_free);
+							}
+						}
+					}
 					janus_plugin_rtp prtp = { .video = FALSE, .buffer = (char *)buffer, .length = bytes };
 					janus_plugin_rtp_extensions_reset(&prtp.extensions);
 					gateway->relay_rtp(session->handle, &prtp);
@@ -2923,7 +3021,7 @@ static void *janus_recordplay_playout_thread(void *sessiondata) {
 	janus_refcount_decrease(&rec->ref);
 	janus_refcount_decrease(&session->ref);
 
-	JANUS_LOG(LOG_INFO, "Leaving playout thread\n");
+	JANUS_LOG(LOG_VERB, "Leaving playout thread\n");
 	g_thread_unref(g_thread_self());
 	return NULL;
 }

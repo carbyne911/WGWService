@@ -110,6 +110,7 @@ janus_recorder *janus_recorder_create_full(const char *dir, const char *codec, c
 	/* Create the recorder */
 	janus_recorder *rc = g_malloc0(sizeof(janus_recorder));
 	janus_refcount_init(&rc->ref, janus_recorder_free);
+	janus_rtp_switching_context_reset(&rc->context);
 	rc->dir = NULL;
 	rc->filename = NULL;
 	rc->file = NULL;
@@ -255,6 +256,35 @@ janus_recorder *janus_recorder_create_full(const char *dir, const char *codec, c
 	return rc;
 }
 
+int janus_recorder_pause(janus_recorder *recorder) {
+	if(!recorder)
+		return -1;
+	if(g_atomic_int_compare_and_exchange(&recorder->paused, 0, 1))
+		return 0;
+	return -2;
+}
+
+int janus_recorder_resume(janus_recorder *recorder) {
+	if(!recorder)
+		return -1;
+	janus_mutex_lock_nodebug(&recorder->mutex);
+	if(g_atomic_int_compare_and_exchange(&recorder->paused, 1, 0)) {
+		if(recorder->type == JANUS_RECORDER_AUDIO) {
+			recorder->context.a_ts_reset = TRUE;
+			recorder->context.a_seq_reset = TRUE;
+			recorder->context.a_last_time = janus_get_monotonic_time();
+		} else if(recorder->type == JANUS_RECORDER_VIDEO) {
+			recorder->context.v_ts_reset = TRUE;
+			recorder->context.v_seq_reset = TRUE;
+			recorder->context.v_last_time = janus_get_monotonic_time();
+		}
+		janus_mutex_unlock_nodebug(&recorder->mutex);
+		return 0;
+	}
+	janus_mutex_unlock_nodebug(&recorder->mutex);
+	return -2;
+}
+
 int janus_recorder_add_extmap(janus_recorder *recorder, int id, const char *extmap) {
 	if(!recorder || g_atomic_int_get(&recorder->header) || id < 1 || id > 15 || extmap == NULL)
 		return -1;
@@ -264,6 +294,16 @@ int janus_recorder_add_extmap(janus_recorder *recorder, int id, const char *extm
 	g_hash_table_insert(recorder->extensions, GINT_TO_POINTER(id), g_strdup(extmap));
 	janus_mutex_unlock_nodebug(&recorder->mutex);
 	return 0;
+}
+
+int janus_recorder_opusred(janus_recorder *recorder, int red_pt) {
+	if(!recorder)
+		return -1;
+	if(!g_atomic_int_get(&recorder->header)) {
+		recorder->opusred_pt = red_pt;
+		return 0;
+	}
+	return -1;
 }
 
 int janus_recorder_encrypted(janus_recorder *recorder) {
@@ -291,6 +331,10 @@ int janus_recorder_save_frame(janus_recorder *recorder, char *buffer, uint lengt
 	if(!g_atomic_int_get(&recorder->writable)) {
 		janus_mutex_unlock_nodebug(&recorder->mutex);
 		return -4;
+	}
+	if(g_atomic_int_get(&recorder->paused)) {
+		janus_mutex_unlock_nodebug(&recorder->mutex);
+		return -5;
 	}
 	gint64 now = janus_get_monotonic_time();
 	if(!g_atomic_int_get(&recorder->header)) {
@@ -330,6 +374,9 @@ int janus_recorder_save_frame(janus_recorder *recorder, char *buffer, uint lengt
 		}
 		json_object_set_new(info, "s", json_integer(recorder->created));				/* Created time */
 		json_object_set_new(info, "u", json_integer(janus_get_real_time()));			/* First frame written time */
+		/* If this is audio and using RED, take note of the payload type */
+		if(recorder->type == JANUS_RECORDER_AUDIO && recorder->opusred_pt > 0)
+			json_object_set_new(info, "or", json_integer(recorder->opusred_pt));
 		/* If media will be end-to-end encrypted, mark it in the recording header */
 		if(recorder->encrypted)
 			json_object_set_new(info, "e", json_true());
@@ -384,16 +431,38 @@ int janus_recorder_save_frame(janus_recorder *recorder, char *buffer, uint lengt
 				res, sizeof(gint64), g_strerror(errno));
 		}
 	}
+	/* Edit packet header if needed */
+	janus_rtp_header *header = (janus_rtp_header *)buffer;
+	uint32_t ssrc = 0;
+	uint16_t seq = 0;
+	if(recorder->type != JANUS_RECORDER_DATA) {
+		ssrc = ntohl(header->ssrc);
+		seq = ntohs(header->seq_number);
+		timestamp = ntohl(header->timestamp);
+		janus_rtp_header_update(header, &recorder->context, recorder->type == JANUS_RECORDER_VIDEO, 0);
+	}
 	/* Save packet on file */
 	int temp = 0, tot = length;
 	while(tot > 0) {
 		temp = fwrite(buffer+length-tot, sizeof(char), tot, recorder->file);
 		if(temp <= 0) {
 			JANUS_LOG(LOG_ERR, "Error saving frame...\n");
+			if(recorder->type != JANUS_RECORDER_DATA) {
+				/* Restore packet header data */
+				header->ssrc = htonl(ssrc);
+				header->seq_number = htons(seq);
+				header->timestamp = htonl(timestamp);
+			}
 			janus_mutex_unlock_nodebug(&recorder->mutex);
 			return -6;
 		}
 		tot -= temp;
+	}
+	if(recorder->type != JANUS_RECORDER_DATA) {
+		/* Restore packet header data */
+		header->ssrc = htonl(ssrc);
+		header->seq_number = htons(seq);
+		header->timestamp = htonl(timestamp);
 	}
 	/* Done */
 	janus_mutex_unlock_nodebug(&recorder->mutex);

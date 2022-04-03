@@ -1254,6 +1254,8 @@ static duk_ret_t janus_duktape_method_relaybinarydata(duk_context *ctx) {
 			janus_duktape_type_string(DUK_TYPE_STRING), janus_duktape_type_string(duk_get_type(ctx, 5)));
 		return duk_throw(ctx);
 	}
+		return duk_throw(ctx);
+	}
 	uint32_t id = (uint32_t)duk_get_number(ctx, 0);
 	const char *payload = duk_get_string(ctx, 1);
 	int len = (int)duk_get_number(ctx, 2);

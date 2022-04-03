@@ -128,6 +128,7 @@ int janus_sdp_process(void *ice_handle, janus_sdp *remote_sdp, gboolean rids_hml
 	int data = 0;
 #endif
 	gboolean rtx = FALSE;
+	char *simulcast_rids = NULL;
 	/* Ok, let's start with global attributes */
 	GList *temp = remote_sdp->attributes;
 	while(temp) {
@@ -180,6 +181,7 @@ int janus_sdp_process(void *ice_handle, janus_sdp *remote_sdp, gboolean rids_hml
 						stream->audio_rtcp_ctx->tb = 48000;	/* May change later */
 					}
 				}
+				gboolean receiving = (stream->audio_recv == TRUE);
 				switch(m->direction) {
 					case JANUS_SDP_INACTIVE:
 					case JANUS_SDP_INVALID:
@@ -203,6 +205,8 @@ int janus_sdp_process(void *ice_handle, janus_sdp *remote_sdp, gboolean rids_hml
 						stream->audio_recv = TRUE;
 						break;
 				}
+				if(receiving != stream->audio_recv)
+					janus_ice_notify_media_stopped(handle);
 				if(m->ptypes != NULL) {
 					g_list_free(stream->audio_payload_types);
 					stream->audio_payload_types = g_list_copy(m->ptypes);
@@ -230,6 +234,7 @@ int janus_sdp_process(void *ice_handle, janus_sdp *remote_sdp, gboolean rids_hml
 						stream->video_rtcp_ctx[0]->tb = 90000;	/* May change later */
 					}
 				}
+				gboolean receiving = (stream->video_recv == TRUE);
 				switch(m->direction) {
 					case JANUS_SDP_INACTIVE:
 					case JANUS_SDP_INVALID:
@@ -253,6 +258,8 @@ int janus_sdp_process(void *ice_handle, janus_sdp *remote_sdp, gboolean rids_hml
 						stream->video_recv = TRUE;
 						break;
 				}
+				if(receiving != stream->video_recv)
+					janus_ice_notify_media_stopped(handle);
 				if(m->ptypes != NULL) {
 					g_list_free(stream->video_payload_types);
 					stream->video_payload_types = g_list_copy(m->ptypes);
@@ -439,6 +446,7 @@ int janus_sdp_process(void *ice_handle, janus_sdp *remote_sdp, gboolean rids_hml
 					JANUS_LOG(LOG_ERR, "[%"SCNu64"] Failed to parse rid attribute...\n", handle->handle_id);
 				} else {
 					JANUS_LOG(LOG_VERB, "[%"SCNu64"] Parsed rid: %s\n", handle->handle_id, rid);
+					stream->disabled_rid[rids_hml ? 2 : 0] = FALSE;
 					if(stream->rid[rids_hml ? 2 : 0] == NULL) {
 						stream->rid[rids_hml ? 2 : 0] = g_strdup(rid);
 					} else if(stream->rid[1] == NULL) {
@@ -452,6 +460,16 @@ int janus_sdp_process(void *ice_handle, janus_sdp *remote_sdp, gboolean rids_hml
 			} else if(a->name && !strcasecmp(a->name, "simulcast") && a->value) {
 				/* Firefox and Chrome signal simulcast support differently */
 				stream->legacy_rid = strstr(a->value, "rid=") ? TRUE : FALSE;
+				/* If the attribute contains a tilde, some of the substreams
+				 * are currently disabled, so let's track it and use it later */
+				if(!stream->legacy_rid && strstr(a->value, "~") != NULL) {
+					char *index = strstr(a->value, "send ");
+					if(index != NULL) {
+						index += strlen("send ");
+						if(index != NULL && simulcast_rids == NULL)
+							simulcast_rids = g_strdup(index);
+					}
+				}
 			}
 			tempA = tempA->next;
 		}
@@ -464,6 +482,35 @@ int janus_sdp_process(void *ice_handle, janus_sdp *remote_sdp, gboolean rids_hml
 		if(stream->rid[0] == NULL && stream->rid[1] != NULL) {
 			stream->rid[0] = stream->rid[1];
 			stream->rid[1] = NULL;
+		}
+		if(simulcast_rids != NULL) {
+			/* Some substreams are disabled, check which ones */
+			gchar **list = g_strsplit(simulcast_rids, ";", 3);
+			gchar *index = list[0];
+			char rid[50];
+			if(index != NULL) {
+				int i=0, j=0;
+				while(index != NULL) {
+					if(strlen(index) > 0 && strstr(index, "~") == index) {
+						for(j=0; j<3; j++) {
+							if(stream->rid[j] != NULL) {
+								g_snprintf(rid, sizeof(rid), "~%s", stream->rid[j]);
+								if(!strcasecmp(index, rid)) {
+									JANUS_LOG(LOG_VERB, "[%"SCNu64"] rid %s is currently disabled\n",
+										handle->handle_id, stream->rid[j]);
+									stream->disabled_rid[j] = TRUE;
+									break;
+								}
+							}
+						}
+					}
+					i++;
+					index = list[i];
+				}
+			}
+			g_clear_pointer(&list, g_strfreev);
+			g_free(simulcast_rids);
+			simulcast_rids = NULL;
 		}
 		/* Let's start figuring out the SSRCs, and any grouping that may be there */
 		stream->audio_ssrc_peer_new = 0;
@@ -571,6 +618,9 @@ int janus_sdp_process(void *ice_handle, janus_sdp *remote_sdp, gboolean rids_hml
 									if(stream->clock_rates == NULL)
 										stream->clock_rates = g_hash_table_new(NULL, NULL);
 									g_hash_table_insert(stream->clock_rates, GINT_TO_POINTER(ptype), GUINT_TO_POINTER(clock_rate));
+									/* Check if opus/red  is negotiated */
+									if(strstr(a->value, "red/48000/2"))
+										stream->opusred_pt = ptype;
 								}
 							}
 						}
@@ -1261,14 +1311,14 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 			if(audio == 1 && m->port > 0) {
 				g_snprintf(buffer_part, sizeof(buffer_part),
 					" %s", handle->audio_mid ? handle->audio_mid : "audio");
-				g_strlcat(buffer, buffer_part, sizeof(buffer));
+				janus_strlcat(buffer, buffer_part, sizeof(buffer));
 			}
 		} else if(m->type == JANUS_SDP_VIDEO) {
 			video++;
 			if(video == 1 && m->port > 0) {
 				g_snprintf(buffer_part, sizeof(buffer_part),
 					" %s", handle->video_mid ? handle->video_mid : "video");
-				g_strlcat(buffer, buffer_part, sizeof(buffer));
+				janus_strlcat(buffer, buffer_part, sizeof(buffer));
 			}
 #ifdef HAVE_SCTP
 		} else if(m->type == JANUS_SDP_APPLICATION) {
@@ -1277,7 +1327,7 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 			if(data == 1 && m->port > 0) {
 				g_snprintf(buffer_part, sizeof(buffer_part),
 					" %s", handle->data_mid ? handle->data_mid : "data");
-				g_strlcat(buffer, buffer_part, sizeof(buffer));
+				janus_strlcat(buffer, buffer_part, sizeof(buffer));
 			}
 #endif
 		}
@@ -1286,6 +1336,10 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 	/* Global attributes: start with group */
 	GList *first = anon->attributes;
 	janus_sdp_attribute *a = janus_sdp_attribute_create("group", "%s", buffer);
+	anon->attributes = g_list_insert_before(anon->attributes, first, a);
+	/* Notify we support 1-byte and 2-byte extensions
+	 * FIXME We should actually negotiate this, in the future */
+	a = janus_sdp_attribute_create("extmap-allow-mixed", NULL);
 	anon->attributes = g_list_insert_before(anon->attributes, first, a);
 	/* msid-semantic: add new global attribute */
 	a = janus_sdp_attribute_create("msid-semantic", " WMS janus");
@@ -1328,6 +1382,7 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 				stream->audio_ssrc = 0;
 			}
 			if(audio == 1) {
+				gboolean receiving = (stream->audio_recv == TRUE);
 				switch(m->direction) {
 					case JANUS_SDP_INACTIVE:
 						stream->audio_send = FALSE;
@@ -1348,6 +1403,8 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 						stream->audio_recv = TRUE;
 						break;
 				}
+				if(receiving != stream->audio_recv)
+					janus_ice_notify_media_stopped(handle);
 			}
 		} else if(m->type == JANUS_SDP_VIDEO) {
 			video++;
@@ -1361,6 +1418,7 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 				stream->video_ssrc = 0;
 			}
 			if(video == 1) {
+				gboolean receiving = (stream->video_recv == TRUE);
 				switch(m->direction) {
 					case JANUS_SDP_INACTIVE:
 						stream->video_send = FALSE;
@@ -1381,6 +1439,8 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 						stream->video_recv = TRUE;
 						break;
 				}
+				if(receiving != stream->video_recv)
+					janus_ice_notify_media_stopped(handle);
 				if(janus_flags_is_set(&handle->webrtc_flags, JANUS_ICE_HANDLE_WEBRTC_RFC4588_RTX)) {
 					/* Add RFC4588 stuff */
 					if(stream->rtx_payload_types && g_hash_table_size(stream->rtx_payload_types) > 0) {
@@ -1528,10 +1588,14 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 				a = janus_sdp_attribute_create("rid", "%s recv", stream->rid[index]);
 				m->attributes = g_list_append(m->attributes, a);
 				if(strlen(rids) == 0) {
-					g_strlcat(rids, stream->rid[index], sizeof(rids));
+					if(stream->disabled_rid[index])
+						janus_strlcat(rids, "~", sizeof(rids));
+					janus_strlcat(rids, stream->rid[index], sizeof(rids));
 				} else {
-					g_strlcat(rids, ";", sizeof(rids));
-					g_strlcat(rids, stream->rid[index], sizeof(rids));
+					janus_strlcat(rids, ";", sizeof(rids));
+					if(stream->disabled_rid[index])
+						janus_strlcat(rids, "~", sizeof(rids));
+					janus_strlcat(rids, stream->rid[index], sizeof(rids));
 				}
 			}
 			if(stream->legacy_rid) {

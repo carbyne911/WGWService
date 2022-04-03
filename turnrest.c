@@ -136,9 +136,18 @@ janus_turnrest_response *janus_turnrest_request(const char *user) {
 		 * See https://github.com/meetecho/janus-gateway/issues/1416 */
 		char buffer[256];
 		g_snprintf(buffer, 256, "&api=%s", api_key);
-		g_strlcat(query_string, buffer, 512);
+		janus_strlcat(query_string, buffer, 512);
 		g_snprintf(buffer, 256, "&key=%s", api_key);
-		g_strlcat(query_string, buffer, 512);
+		janus_strlcat(query_string, buffer, 512);
+	}
+	if(user != NULL) {
+		/* Note: 'username' is supposedly optional, but a commonly used
+		 * TURN REST API server implementation requires it. As such, we
+		 * now send that too, letting the Janus core tell us what to use
+		 * See https://github.com/meetecho/janus-gateway/issues/2199 */
+		char buffer[256];
+		g_snprintf(buffer, 256, "&username=%s", user);
+		janus_strlcat(query_string, buffer, 512);
 	}
 	if(user != NULL) {
 		/* Note: 'username' is supposedly optional, but a commonly used

@@ -549,7 +549,6 @@ if ENABLE_PLUGIN_DUKTAPE
 plugin_LTLIBRARIES += plugins/libjanus_duktape.la
 plugins_libjanus_duktape_la_SOURCES = plugins/janus_duktape.c \
 	plugins/janus_duktape_data.h plugins/janus_duktape_extra.c plugins/janus_duktape_extra.h \
-	plugins/duktape-deps/duktape.c plugins/duktape-deps/duk_config.h plugins/duktape-deps/duktape.h \
 	plugins/duktape-deps/duk_module_duktape.c plugins/duktape-deps/duk_module_duktape.h \
 	plugins/duktape-deps/duk_console.c plugins/duktape-deps/duk_console.h
 plugins_libjanus_duktape_la_CFLAGS = $(plugins_cflags) $(DUKTAPE_CFLAGS)
@@ -646,6 +645,31 @@ mjr2pcap_LDADD = \
 	$(BORINGSSL_LIBS) \
 	$(POST_PROCESSING_LIBS) \
 	$(POST_PROCESSING_MANUAL_LIBS) \
+	$(NULL)
+
+if ENABLE_PCAP2MJR
+pcap2mjr_SOURCES = \
+	postprocessing/p2m-cmdline.c \
+	postprocessing/p2m-cmdline.h \
+	postprocessing/pp-rtp.h \
+	postprocessing/pcap2mjr.c \
+	log.c \
+	utils.c \
+	$(NULL)
+
+pcap2mjr_CFLAGS = \
+	$(AM_CFLAGS) \
+	-I$(top_builddir)/postprocessing \
+	$(POST_PROCESSING_CFLAGS) \
+	$(PCAP_CFLAGS) \
+	$(BORINGSSL_CFLAGS) \
+	$(NULL)
+
+pcap2mjr_LDADD = \
+	$(BORINGSSL_LIBS) \
+	$(POST_PROCESSING_LIBS) \
+	$(POST_PROCESSING_MANUAL_LIBS) \
+	$(PCAP_LIBS) \
 	$(NULL)
 
 if ENABLE_PCAP2MJR
