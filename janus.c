@@ -1217,7 +1217,9 @@ int janus_process_incoming_request(janus_request *request) {
 			}
 		}
 		json_t *opaque = json_object_get(root, "opaque_id");
-		const char *opaque_id = opaque ? json_string_value(opaque) : NULL
+		const char *opaque_id = opaque ? json_string_value(opaque) : NULL;
+		json_t *loop = json_object_get(root, "loop_index");
+		int loop_index = loop ? json_integer_value(loop) : -1;
 		/* Create handle */
 		handle = janus_ice_handle_create(session, opaque_id, token_value);
 		if(handle == NULL) {
@@ -5203,8 +5205,15 @@ gint main(int argc, char *argv[])
 	}
 	/* Do we need a limited number of static event loops, or is it ok to have one per handle (the default)? */
 	item = janus_config_get(config, config_general, janus_config_type_item, "event_loops");
-	if(item && item->value)
-		janus_ice_set_static_event_loops(atoi(item->value));
+	if(item && item->value) {
+		int loops = atoi(item->value);
+		/* Check if we should allow API calls to specify which loops to use for new handles */
+		gboolean loops_api = FALSE;
+		item = janus_config_get(config, config_general, janus_config_type_item, "allow_loop_indication");
+		if(item && item->value)
+			loops_api = janus_is_true(item->value);
+		janus_ice_set_static_event_loops(loops, loops_api);
+	}
 	/* Initialize the ICE stack now */
 	janus_ice_init(ice_lite, ice_tcp, full_trickle, ignore_mdns, ipv6, ipv6_linklocal, rtp_min_port, rtp_max_port);
 	if(janus_ice_set_stun_server(stun_server, stun_port) < 0) {
