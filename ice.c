@@ -180,7 +180,6 @@ static void janus_ice_static_event_loop_free(const janus_refcount *loop_ref) {
 	g_free(loop);
 }
 static int static_event_loops = 0;
-static gboolean allow_loop_indication = FALSE;
 static GSList *event_loops = NULL;
 static janus_mutex event_loops_mutex = JANUS_MUTEX_INITIALIZER;
 static void *janus_ice_static_event_loop_thread(void *data) {
@@ -204,10 +203,8 @@ static void *janus_ice_static_event_loop_thread(void *data) {
 int janus_ice_get_static_event_loops(void) {
 	return static_event_loops;
 }
-gboolean janus_ice_is_loop_indication_allowed(void) {
-	return allow_loop_indication;
-}
-void janus_ice_set_static_event_loops(int loops, gboolean allow_api) {
+
+void janus_ice_set_static_event_loops(int loops) {
 	if(loops == 0)
 		return;
 	else if(loops < 1) {
@@ -1323,7 +1320,7 @@ janus_ice_handle *janus_ice_handle_create(void *core_session, const char *opaque
 	return handle;
 }
 
-gint janus_ice_handle_attach_plugin(void *core_session, janus_ice_handle *handle, janus_plugin *plugin, int loop_index) {
+gint janus_ice_handle_attach_plugin(void *core_session, janus_ice_handle *handle, janus_plugin *plugin) {
 	if(core_session == NULL)
 		return JANUS_ERROR_SESSION_NOT_FOUND;
 	janus_session *session = (janus_session *)core_session;
@@ -1362,51 +1359,14 @@ gint janus_ice_handle_attach_plugin(void *core_session, janus_ice_handle *handle
 		handle->mainloop = g_main_loop_new(handle->mainctx, FALSE);
 	} else {
 		/* We're actually using static event loops, pick one from the list */
-		if(!allow_loop_indication && loop_index > -1) {
-			JANUS_LOG(LOG_WARN, "[%"SCNu64"] Manual allocation of event loops forbidden, ignoring provided loop index %d\n", handle->handle_id, loop_index);
-		}
 		janus_refcount_increase(&handle->ref);
 		janus_mutex_lock(&event_loops_mutex);
-		gboolean automatic_selection = TRUE;
-		if(allow_loop_indication && loop_index != -1) {
-			/* The API can drive the selection and an index was provided, check if it exists */
-			janus_ice_static_event_loop *loop = g_slist_nth_data(event_loops, loop_index);
-			if(loop == NULL) {
-				JANUS_LOG(LOG_WARN, "[%"SCNu64"] Invalid loop index %d, picking event loop automatically\n", handle->handle_id, loop_index);
-			} else {
-				janus_refcount_increase(&loop->ref);
-				automatic_selection = FALSE;
-				handle->mainctx = loop->mainctx;
-				handle->mainloop = loop->mainloop;
-				loop->handles++;
-				JANUS_LOG(LOG_VERB, "[%"SCNu64"] Manually added handle to loop #%d\n", handle->handle_id, loop->id);
-			}
-		}
-		if(automatic_selection) {
-			/* Pick an available loop automatically (least loaded) */
-			int handles = -1;
-			janus_ice_static_event_loop *loop = NULL;
-			GSList *l = event_loops;
-			while(l) {
-				janus_ice_static_event_loop *el = (janus_ice_static_event_loop *)l->data;
-				if(el->handles == 0) {
-					/* Best option, stop here */
-					loop = el;
-					break;
-				}
-				if(handles == -1 || el->handles < handles) {
-					handles = el->handles;
-					loop = el;
-				}
-				l = l->next;
-			}
-			janus_refcount_increase(&loop->ref);
-			loop->handles++;
-			handle->mainctx = loop->mainctx;
-			handle->mainloop = loop->mainloop;
-			handle->static_event_loop = loop;
-			JANUS_LOG(LOG_VERB, "[%"SCNu64"] Automatically added handle to loop #%d\n", handle->handle_id, loop->id);
-		}
+		janus_ice_static_event_loop* loop = (janus_ice_static_event_loop*)current_loop->data;
+		handle->mainctx = loop->mainctx;
+		handle->mainloop = loop->mainloop;
+		current_loop = current_loop->next;
+		if (current_loop == NULL)
+			current_loop = event_loops;
 		janus_mutex_unlock(&event_loops_mutex);
 	}
 	handle->rtp_source = janus_ice_outgoing_traffic_create(handle, (GDestroyNotify)g_free);
@@ -3301,7 +3261,7 @@ static void janus_ice_cb_nice_recv(NiceAgent *agent, guint stream_id, guint comp
 void janus_ice_incoming_data(janus_ice_handle *handle, char *label, char *protocol, gboolean textdata, char *buffer, int length) {
 	if(handle == NULL || buffer == NULL || length <= 0)
 		return;
-	janus_plugin_data data = { .label = label, .protocol = protocol, .binary = !textdata, .buffer = buffer, .length = length };
+	janus_plugin_data data = { .label = label, .binary = !textdata, .buffer = buffer, .length = length };
 	janus_plugin *plugin = (janus_plugin *)handle->app;
 	if(plugin && plugin->incoming_data && handle->app_handle &&
 			!g_atomic_int_get(&handle->app_handle->stopped) &&

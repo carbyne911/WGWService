@@ -105,7 +105,6 @@ static struct janus_json_parameter incoming_request_parameters[] = {
 static struct janus_json_parameter attach_parameters[] = {
 	{"plugin", JSON_STRING, JANUS_JSON_PARAM_REQUIRED},
 	{"opaque_id", JSON_STRING, 0},
-	{"loop_index", JSON_INTEGER, JANUS_JSON_PARAM_POSITIVE},
 };
 static struct janus_json_parameter body_parameters[] = {
 	{"body", JSON_OBJECT, JANUS_JSON_PARAM_REQUIRED}
@@ -390,8 +389,6 @@ static json_t *janus_info(const char *transaction) {
 	if(janus_ice_is_force_relay_allowed())
 		json_object_set_new(info, "allow-force-relay", json_true());
 	json_object_set_new(info, "static-event-loops", json_integer(janus_ice_get_static_event_loops()));
-	if(janus_ice_get_static_event_loops())
-		json_object_set_new(info, "loop-indication", janus_ice_is_loop_indication_allowed() ? json_true() : json_false());
 	json_object_set_new(info, "api_secret", api_secret ? json_true() : json_false());
 	json_object_set_new(info, "auth_token", janus_auth_is_enabled() ? json_true() : json_false());
 	json_object_set_new(info, "event_handlers", janus_events_is_enabled() ? json_true() : json_false());
@@ -1231,7 +1228,7 @@ int janus_process_incoming_request(janus_request *request) {
 		janus_refcount_increase(&handle->ref);
 		/* Attach to the plugin */
 		int error = 0;
-		if((error = janus_ice_handle_attach_plugin(session, handle, plugin_t, loop_index)) != 0) {
+		if((error = janus_ice_handle_attach_plugin(session, handle, plugin_t)) != 0) {
 			/* TODO Make error struct to pass verbose information */
 			janus_session_handles_remove(session, handle);
 			JANUS_LOG(LOG_ERR, "Couldn't attach to plugin '%s', error '%d'\n", plugin_text, error);
@@ -5205,15 +5202,8 @@ gint main(int argc, char *argv[])
 	}
 	/* Do we need a limited number of static event loops, or is it ok to have one per handle (the default)? */
 	item = janus_config_get(config, config_general, janus_config_type_item, "event_loops");
-	if(item && item->value) {
-		int loops = atoi(item->value);
-		/* Check if we should allow API calls to specify which loops to use for new handles */
-		gboolean loops_api = FALSE;
-		item = janus_config_get(config, config_general, janus_config_type_item, "allow_loop_indication");
-		if(item && item->value)
-			loops_api = janus_is_true(item->value);
-		janus_ice_set_static_event_loops(loops, loops_api);
-	}
+	if(item && item->value)
+		janus_ice_set_static_event_loops(atoi(item->value));
 	/* Initialize the ICE stack now */
 	janus_ice_init(ice_lite, ice_tcp, full_trickle, ignore_mdns, ipv6, ipv6_linklocal, rtp_min_port, rtp_max_port);
 	if(janus_ice_set_stun_server(stun_server, stun_port) < 0) {
