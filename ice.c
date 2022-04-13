@@ -1358,6 +1358,32 @@ gint janus_ice_handle_attach_plugin(void *core_session, janus_ice_handle *handle
 		/* We're actually using static event loops, pick one from the list */
 		janus_refcount_increase(&handle->ref);
 		janus_mutex_lock(&event_loops_mutex);
+		gboolean automatic_selection = TRUE;
+		if (automatic_selection) {
+			/* Pick an available loop automatically (least loaded) */
+			int handles = -1;
+			janus_ice_static_event_loop* loop = NULL;
+			GSList* l = event_loops;
+			while (l) {
+				janus_ice_static_event_loop* el = (janus_ice_static_event_loop*)l->data;
+				if (el->handles == 0) {
+					/* Best option, stop here */
+					loop = el;
+					break;
+				}
+				if (handles == -1 || el->handles < handles) {
+					handles = el->handles;
+					loop = el;
+				}
+				l = l->next;
+			}
+			janus_refcount_increase(&loop->ref);
+			loop->handles++;
+			handle->mainctx = loop->mainctx;
+			handle->mainloop = loop->mainloop;
+			handle->static_event_loop = loop;
+			JANUS_LOG(LOG_VERB, "[%"SCNu64"] Automatically added handle to loop #%d\n", handle->handle_id, loop->id);
+		}
 		janus_ice_static_event_loop* loop = (janus_ice_static_event_loop*)current_loop->data;
 		handle->mainctx = loop->mainctx;
 		handle->mainloop = loop->mainloop;
