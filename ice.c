@@ -1384,12 +1384,6 @@ gint janus_ice_handle_attach_plugin(void *core_session, janus_ice_handle *handle
 			handle->static_event_loop = loop;
 			JANUS_LOG(LOG_VERB, "[%"SCNu64"] Automatically added handle to loop #%d\n", handle->handle_id, loop->id);
 		}
-		janus_ice_static_event_loop* loop = (janus_ice_static_event_loop*)current_loop->data;
-		handle->mainctx = loop->mainctx;
-		handle->mainloop = loop->mainloop;
-		current_loop = current_loop->next;
-		if (current_loop == NULL)
-			current_loop = event_loops;
 		janus_mutex_unlock(&event_loops_mutex);
 	}
 	handle->rtp_source = janus_ice_outgoing_traffic_create(handle, (GDestroyNotify)g_free);
