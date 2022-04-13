@@ -1811,7 +1811,6 @@ typedef struct janus_videoroom_publisher
 	gboolean talking;			   /* Whether this participant is currently talking (uses audio levels extension) */
 	gboolean data_active, data_muted;
 	int16_t min_delay, max_delay;
-	gboolean data_active, data_muted;
 	gboolean firefox; /* We send Firefox users a different kind of FIR */
 	uint32_t bitrate;
 	gint64 remb_startup;	   /* Incremental changes on REMB to reach the target at startup */
@@ -1872,7 +1871,6 @@ typedef struct janus_videoroom_subscriber
 	int temporal_layer, target_temporal_layer;
 	gboolean e2ee; /* If media for this subscriber is end-to-end encrypted */
 	int16_t min_delay, max_delay;
-	gboolean e2ee;		/* If media for this subscriber is end-to-end encrypted */
 	volatile gint destroyed;
 	janus_refcount ref;
 } janus_videoroom_subscriber;
@@ -5623,7 +5621,7 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 						{
 							/* We've started recording, send a PLI/FIR and go on */
 							janus_videoroom_recorder_create(
-								participant, 
+								participant,
 								strstr(participant->sdp, "m=audio") != NULL,
 								strstr(participant->sdp, "m=video") != NULL,
 								strstr(participant->sdp, "m=application") != NULL);
@@ -6897,7 +6895,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 						   "log_string", 0, MAX_STRING_LEN);
 		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sVIDEO_%s", rtsp_url, room->room_id_str),
 						   "rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
-		JANUS_LOG(LOG_INFO, "CARBYNE:::::RtpUrl = %s\n", rtsp_full_url); 
+		JANUS_LOG(LOG_INFO, "CARBYNE:::::RtpUrl = %s\n", rtsp_full_url);
 		if (vcodec == JANUS_VIDEOCODEC_VP8)
 		{
 			JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 --------------%s\n", log_string);
@@ -9988,7 +9986,7 @@ static void *janus_videoroom_handler(void *data)
 										JANUS_LOG(LOG_WARN, "Invalid playout-delay extension ID: %s\n", a->value);
 								}
 								else if (m->type == JANUS_SDP_AUDIO && !strcasecmp(a->name, "fmtp"))
-								{	
+								{
 									if(strstr(a->value, "useinbandfec=1") && videoroom->do_opusfec) {
 										participant->do_opusfec = TRUE;
 										if(strlen(custom_fmtp) == 0) {
