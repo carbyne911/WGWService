@@ -7515,7 +7515,7 @@ void janus_videoroom_slow_link(janus_plugin_session *handle, int uplink, int vid
 	janus_refcount_decrease(&session->ref);
 }
 
-char *get_time_stamp()
+char *get_time_stamp(void)
 {
 	struct timeval current_time = {0};
 	gettimeofday(&current_time, NULL);
