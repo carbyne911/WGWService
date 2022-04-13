@@ -10010,7 +10010,7 @@ static void *janus_videoroom_handler(void *data)
 										} else {
 											g_strlcat(custom_fmtp, ";stereo=1", sizeof(custom_fmtp));
 										}
-									}								{
+									}
 									char *tmp = strchr(a->value, ' ');
 									if (tmp && strlen(tmp) > 1)
 									{
