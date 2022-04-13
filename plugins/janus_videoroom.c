@@ -7515,7 +7515,7 @@ void janus_videoroom_slow_link(janus_plugin_session *handle, int uplink, int vid
 	janus_refcount_decrease(&session->ref);
 }
 
-char *get_time_stamp(void)
+static char *get_time_stamp(void)
 {
 	struct timeval current_time = {0};
 	gettimeofday(&current_time, NULL);
@@ -7649,7 +7649,7 @@ static void janus_videoroom_recorder_create(janus_videoroom_publisher *participa
 // CARBYNE-S3-UPLOAD
 #define REC_JSON "{\n \"recordingName\" : \"%s\" ,\n \"directory\" : \"%s\" ,\n\"codec\" : \"%s\"\n}"
 #define REC_JSON_PATH "/home/ubuntu/RecJSON/%s.json"
-int create_recording_json(char *filename, char *codec)
+static int create_recording_json(char *filename, char *codec)
 {
 	char *jsonObj = NULL;
 	asprintf(&jsonObj, REC_JSON, filename, RECORDINGS_PATH, codec);
