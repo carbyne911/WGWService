@@ -239,9 +239,6 @@ void janus_ice_set_static_event_loops(int loops) {
 		}
 	}
 	JANUS_LOG(LOG_INFO, "Spawned %d static event loops (handles won't have a dedicated loop)\n", static_event_loops);
-	allow_loop_indication = allow_api;
-	JANUS_LOG(LOG_INFO, "  -- Janus API %s be able to drive the loop choice for new handles\n",
-		allow_loop_indication ? "will" : "will NOT");
 	return;
 }
 json_t *janus_ice_static_event_loops_info(void) {
