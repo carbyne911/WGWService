@@ -1812,8 +1812,9 @@ typedef struct janus_videoroom_publisher
 	int user_audio_active_packets; /* Participant's audio_active_packets overwriting global room setting */
 	int user_audio_level_average;  /* Participant's audio_level_average overwriting global room setting */
 	gboolean talking;			   /* Whether this participant is currently talking (uses audio levels extension) */
-	gboolean data_active, data_muted;
+	/* Playout delays to enforce when relaying this stream, if the extension has been negotiated */
 	int16_t min_delay, max_delay;
+	gboolean data_active, data_muted;
 	gboolean firefox; /* We send Firefox users a different kind of FIR */
 	uint32_t bitrate;
 	gint64 remb_startup;	   /* Incremental changes on REMB to reach the target at startup */
@@ -1821,7 +1822,7 @@ typedef struct janus_videoroom_publisher
 	gint64 fir_latest;		   /* Time of latest sent FIR (to avoid flooding) */
 	gint fir_seq;			   /* FIR sequence number */
 	gboolean recording_active; /* Whether this publisher has to be recorded or not */
-	gchar *recording_base;	   /* Base name for the recording (e.g., /path/to/filename, will generate /path/to/filename-audio.mjr and/or /path/to/filename-video.mjr */
+	gchar *recording_base;	   /* Base name for the recording (e.g., /path/to/filename, will generate /path/to/filename-audio.mjr and/or /path/to/filename-video.mjr) */
 	janus_recorder *arc;	   /* The Janus recorder instance for this publisher's audio, if enabled */
 	janus_recorder *vrc;	   /* The Janus recorder instance for this user's video, if enabled */
 	janus_recorder *drc;	   /* The Janus recorder instance for this publisher's data, if enabled */
@@ -1872,8 +1873,9 @@ typedef struct janus_videoroom_subscriber
 	int spatial_layer, target_spatial_layer;
 	gint64 last_spatial_layer[3];
 	int temporal_layer, target_temporal_layer;
-	gboolean e2ee; /* If media for this subscriber is end-to-end encrypted */
+	/* Playout delays to enforce when relaying this stream, if the extension has been negotiated */
 	int16_t min_delay, max_delay;
+	gboolean e2ee; /* If media for this subscriber is end-to-end encrypted */
 	volatile gint destroyed;
 	janus_refcount ref;
 } janus_videoroom_subscriber;
@@ -4003,9 +4005,9 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 				janus_config_add(config, c, janus_config_item_create("is_private", "yes"));
 			if (videoroom->require_pvtid)
 				janus_config_add(config, c, janus_config_item_create("require_pvtid", "yes"));
-			if(videoroom->signed_tokens)
+			if (videoroom->signed_tokens)
 				janus_config_add(config, c, janus_config_item_create("signed_tokens", "yes"));
-			if(videoroom->require_e2ee)
+			if (videoroom->require_e2ee)
 				janus_config_add(config, c, janus_config_item_create("require_e2ee", "yes"));
 			g_snprintf(value, BUFSIZ, "%" SCNu32, videoroom->bitrate);
 			janus_config_add(config, c, janus_config_item_create("bitrate", value));
@@ -4198,7 +4200,7 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 			videoroom->rec_dir = new_rec_dir;
 			g_free(old_rec_dir);
 		}
-		if(save) {
+		if (save) {
 			/* This room is permanent: save to the configuration file too
 			 * FIXME: We should check if anything fails... */
 			JANUS_LOG(LOG_VERB, "Modifying room %s permanently in config file\n", videoroom->room_id_str);
@@ -4215,9 +4217,9 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 				janus_config_add(config, c, janus_config_item_create("is_private", "yes"));
 			if (videoroom->require_pvtid)
 				janus_config_add(config, c, janus_config_item_create("require_pvtid", "yes"));
-			if(videoroom->signed_tokens)
+			if (videoroom->signed_tokens)
 				janus_config_add(config, c, janus_config_item_create("signed_tokens", "yes"));
-			if(videoroom->require_e2ee)
+			if (videoroom->require_e2ee)
 				janus_config_add(config, c, janus_config_item_create("require_e2ee", "yes"));
 			g_snprintf(value, BUFSIZ, "%" SCNu32, videoroom->bitrate);
 			janus_config_add(config, c, janus_config_item_create("bitrate", value));
@@ -6639,7 +6641,7 @@ void janus_videoroom_incoming_rtp(janus_plugin_session *handle, janus_plugin_rtp
 					janus_videoroom_publisher_dereference_nodebug(participant);
 					return;
 				}
-				if(participant->vcodec == JANUS_VIDEOCODEC_VP8) {
+				if (participant->vcodec == JANUS_VIDEOCODEC_VP8) {
 					if (janus_vp8_is_keyframe(payload, plen))
 						participant->fir_latest = now;
 				}
@@ -8325,7 +8327,6 @@ static void *janus_videoroom_handler(void *data)
 						publisher->pvt_id = 0;
 					}
 				}
-				g_hash_table_insert(publisher->room->private_ids, GUINT_TO_POINTER(publisher->pvt_id), publisher);
 				g_atomic_int_set(&publisher->destroyed, 0);
 				janus_refcount_init(&publisher->ref, janus_videoroom_publisher_free);
 				/* In case we also wanted to configure */

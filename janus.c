@@ -1215,8 +1215,6 @@ int janus_process_incoming_request(janus_request *request) {
 		}
 		json_t *opaque = json_object_get(root, "opaque_id");
 		const char *opaque_id = opaque ? json_string_value(opaque) : NULL;
-		json_t *loop = json_object_get(root, "loop_index");
-		int loop_index = loop ? json_integer_value(loop) : -1;
 		/* Create handle */
 		handle = janus_ice_handle_create(session, opaque_id, token_value);
 		if(handle == NULL) {
