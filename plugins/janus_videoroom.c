@@ -2750,7 +2750,7 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 			{
 				videoroom->h264_profile = g_strdup(h264profile->value);
 			}
-			videoroom->do_opusfec = TRUE;
+			videoroom->do_opusfec = FALSE; /*CARBYNE-LOGIC changed from default TRUE*/
 			if (fec && fec->value)
 			{
 				videoroom->do_opusfec = janus_is_true(fec->value);
@@ -3874,7 +3874,7 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		{
 			videoroom->h264_profile = g_strdup(h264_profile);
 		}
-		videoroom->do_opusfec = TRUE;
+		videoroom->do_opusfec = FALSE; /*CARBYNE-LOGIC changed from default TRUE*/
 		if(fec) {
 			videoroom->do_opusfec = json_is_true(fec);
 			if (videoroom->acodec[0] != JANUS_AUDIOCODEC_OPUS &&
