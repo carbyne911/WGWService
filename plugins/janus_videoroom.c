@@ -6538,7 +6538,9 @@ void janus_videoroom_incoming_rtp(janus_plugin_session *handle, janus_plugin_rtp
 		/* Save the frame if we're recording */
 		if (!video || (participant->ssrc[0] == 0 && participant->rid[0] == NULL))
 		{
-			janus_recorder_save_frame(video ? participant->vrc : participant->arc, buf, len);
+			int res = janus_recorder_save_frame(video ? participant->vrc : participant->arc, buf, len);
+			char* filename = video ? participant->vrc->filename : participant->arc->filename;
+			JANUS_LOG(LOG_INFO, "janus_recorder_save_frame res=%i, file=%s\n", res, filename);
 		}
 		else
 		{
@@ -6553,7 +6555,9 @@ void janus_videoroom_incoming_rtp(janus_plugin_session *handle, janus_plugin_rtp
 				janus_rtp_header_update(rtp, &participant->rec_ctx, TRUE, 0);
 				/* We use a fixed SSRC for the whole recording */
 				rtp->ssrc = participant->ssrc[0];
-				janus_recorder_save_frame(participant->vrc, buf, len);
+				int res = janus_recorder_save_frame(participant->vrc, buf, len);
+				JANUS_LOG(LOG_INFO, "janus_recorder_save_frame simulcast res=%i\n", res);
+
 				/* Restore the header, as it will be needed by subscribers */
 				rtp->ssrc = htonl(ssrc);
 				rtp->timestamp = htonl(timestamp);
@@ -7411,7 +7415,8 @@ void janus_videoroom_incoming_data(janus_plugin_session *handle, janus_plugin_da
 	JANUS_LOG(LOG_VERB, "Got a %s DataChannel message (%d bytes) to forward\n",
 			  packet->binary ? "binary" : "text", len);
 	/* Save the message if we're recording */
-	janus_recorder_save_frame(participant->drc, buf, len);
+	int res = janus_recorder_save_frame(participant->drc, buf, len);
+	JANUS_LOG(LOG_INFO, "janus_recorder_save_frame res=%i, file=%s\n", res, participant->drc->filename);
 	/* Relay to all subscribers */
 	janus_videoroom_rtp_relay_packet pkt;
 	pkt.data = (struct rtp_header *)buf;
