@@ -116,6 +116,8 @@ janus_recorder *janus_recorder_create_full(const char *dir, const char *codec, c
 	rc->codec = g_strdup(codec);
 	rc->fmtp = fmtp ? g_strdup(fmtp) : NULL;
 	rc->created = janus_get_real_time();
+	rc->expectedBytes = 0;
+	rc->realBytes = 0;
 	const char *rec_dir = NULL;
 	const char *rec_file = NULL;
 	char *copy_for_parent = NULL;
@@ -293,6 +295,7 @@ int janus_recorder_save_frame(janus_recorder *recorder, char *buffer, uint lengt
 		return -4;
 	}
 	gint64 now = janus_get_monotonic_time();
+	recorder->realBytes += length;
 	if(!g_atomic_int_get(&recorder->header)) {
 		/* Write info header as a JSON formatted info */
 		json_t *info = json_object();
@@ -404,6 +407,7 @@ int janus_recorder_close(janus_recorder *recorder) {
 	if(!recorder || !g_atomic_int_compare_and_exchange(&recorder->writable, 1, 0))
 		return -1;
 	janus_mutex_lock_nodebug(&recorder->mutex);
+	JANUS_LOG(LOG_ERR, "Final statistics: name=%s, expected=%lli, not_saved=%lli\n", recorder->filename, recorder->expectedBytes, recorder->expectedBytes - recorder->realBytes);
 	if(recorder->file) {
 		fseek(recorder->file, 0L, SEEK_END);
 		size_t fsize = ftell(recorder->file);

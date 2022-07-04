@@ -6197,6 +6197,11 @@ void janus_videoroom_incoming_rtp(janus_plugin_session *handle, janus_plugin_rtp
 	gboolean video = pkt->video;
 	char *buf = pkt->buffer;
 	uint16_t len = pkt->length;
+
+	if(video)
+		participant->vrc->expectedBytes += len;
+	else
+		participant->arc->expectedBytes += len;
 	/* In case this is an audio packet and we're doing talk detection, check the audio level extension */
 	if (!video && videoroom->audiolevel_event && participant->audio_active && !participant->audio_muted)
 	{

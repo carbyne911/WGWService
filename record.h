@@ -66,6 +66,9 @@ typedef struct janus_recorder {
 	volatile gint destroyed;
 	/*! \brief Reference counter for this instance */
 	janus_refcount ref;
+
+	gint64 expectedBytes;
+	gint64 realBytes;
 } janus_recorder;
 
 /*! \brief Initialize the recorder code
