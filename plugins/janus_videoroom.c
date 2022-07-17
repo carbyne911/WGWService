@@ -6200,7 +6200,6 @@ void janus_videoroom_incoming_rtp(janus_plugin_session *handle, janus_plugin_rtp
 
 
 	janus_recorder* recorder = video ? participant->vrc : participant->arc;
-	JANUS_LOG(LOG_INFO, "Statistics: name=%s, expected=%lli, not_saved=%lli\n", recorder->filename, recorder->expectedBytes, recorder->expectedBytes - recorder->realBytes);
 	recorder->expectedBytes += len;
 
 	/* In case this is an audio packet and we're doing talk detection, check the audio level extension */
