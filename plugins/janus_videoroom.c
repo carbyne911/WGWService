@@ -1632,6 +1632,9 @@ typedef struct janus_videoroom
 	janus_refcount ref;				/* Reference counter for this room */
 	gboolean is_gst_audiomixer;		/*CARBYNE-GST*/
 	janus_gst_thread_parameters gst_thread_parameters[FORWARD_MEDIA_TYPE_SIZE];
+	gchar *sgwURL;
+	gchar *sgwUsername;
+	gchar *sgwPassword;
 } janus_videoroom;
 static GHashTable *rooms;
 static janus_mutex rooms_mutex = JANUS_MUTEX_INITIALIZER;
@@ -2488,11 +2491,11 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 		janus_config_category *config_general = janus_config_get_create(config, NULL, janus_config_type_category, "general");
 		/*CARBYNE-RF*/
 		janus_config_item *item_rtsp = janus_config_get(config, config_general, janus_config_type_item, "rtsp_url");
-		if (item_rtsp && item_rtsp->value)
-		{
-			rtsp_url = g_strdup(item_rtsp->value);
-			JANUS_LOG(LOG_VERB, "rtsp_url: %s\n", rtsp_url);
-		}
+		// if (item_rtsp && item_rtsp->value)
+		// {
+		// 	rtsp_url = g_strdup(item_rtsp->value);
+		// 	JANUS_LOG(LOG_VERB, "rtsp_url: %s\n", rtsp_url);
+		// }
 		/*CARBYNE-RF end*/
 		/*CARBYNE-AUT*/
 		janus_config_item *item = janus_config_get(config, config_general, janus_config_type_item, "plugin_auth_secret");
@@ -3564,6 +3567,11 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		json_t *rec_dir = json_object_get(root, "rec_dir");
 		json_t *lock_record = json_object_get(root, "lock_record");
 		json_t *permanent = json_object_get(root, "permanent");
+		json_t *sgwURL = json_object_get(root, "sgwURL");
+		json_t *sgwUsername = json_object_get(root, "sgwUsername");
+		json_t *sgwPassword = json_object_get(root, "sgwPassword");
+		
+		
 		if (allowed)
 		{
 			/* Make sure the "allowed" array only contains strings */
@@ -3700,6 +3708,9 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		}
 		videoroom->room_id = room_id;
 		videoroom->room_id_str = room_id_str ? g_strdup(room_id_str) : NULL;
+		videoroom->sgwURL = g_strdup(json_string_value(sgwURL));
+		videoroom->sgwUsername = g_strdup(json_string_value(sgwUsername));
+		videoroom->sgwPassword = g_strdup(json_string_value(sgwPassword));
 		if (room_id_allocated)
 			g_free(room_id_str);
 		char *description = NULL;
@@ -6742,7 +6753,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 	GError *error = NULL;
 	janus_gstr *gstr = NULL;
 	char rtsp_full_url[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
-
+	char rtsp_url_base[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
 	VERIFY_ELSE_RETURN_FALSE(NULL != room, "parameter room is empty\n");
 
 	if (MEDIA_AUDIO_MIXER == media_type)
@@ -6780,9 +6791,13 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		break;
 	case MEDIA_VIDEO:
 		gstr = &room->gst_thread_parameters[MEDIA_VIDEO].gstr;
+		g_snprintf(rtsp_url_base,JANUS_RTP_FORWARD_STRING_SIZE,"rtsp://%s:%s@%s:1935/ClientVideo/",room->sgwUsername,room->sgwPassword,room->sgwURL);
+		
+		
+		JANUS_LOG(LOG_INFO,"room %s  rtsp target: %s\n",room->room_id_str,rtsp_full_url);
 		IS_PARAM_IN_LIMITS(g_snprintf(log_string, MAX_STRING_LEN, "VIDEO %s", room->room_id_str),
 						   "log_string", 0, MAX_STRING_LEN);
-		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sVIDEO_%s", rtsp_url, room->room_id_str),
+		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sVIDEO_%s", rtsp_url_base, room->room_id_str),
 						   "rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
 		JANUS_LOG(LOG_INFO, "CARBYNE:::::RtpUrl = %s\n", rtsp_full_url); 
 		if (vcodec == JANUS_VIDEOCODEC_VP8)
