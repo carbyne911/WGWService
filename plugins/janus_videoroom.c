@@ -2490,12 +2490,6 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 	{
 		janus_config_category *config_general = janus_config_get_create(config, NULL, janus_config_type_category, "general");
 		/*CARBYNE-RF*/
-		janus_config_item *item_rtsp = janus_config_get(config, config_general, janus_config_type_item, "rtsp_url");
-		// if (item_rtsp && item_rtsp->value)
-		// {
-		// 	rtsp_url = g_strdup(item_rtsp->value);
-		// 	JANUS_LOG(LOG_VERB, "rtsp_url: %s\n", rtsp_url);
-		// }
 		/*CARBYNE-RF end*/
 		/*CARBYNE-AUT*/
 		janus_config_item *item = janus_config_get(config, config_general, janus_config_type_item, "plugin_auth_secret");
@@ -4414,6 +4408,7 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 				json_object_set_new(rl, "videoorient_ext", room->videoorient_ext ? json_true() : json_false());
 				json_object_set_new(rl, "playoutdelay_ext", room->playoutdelay_ext ? json_true() : json_false());
 				json_object_set_new(rl, "transport_wide_cc_ext", room->transport_wide_cc_ext ? json_true() : json_false());
+				json_object_set_new(rl, "sgwURL", json_string(room->sgwURL));
 				json_array_append_new(list, rl);
 			}
 			janus_refcount_decrease(&room->ref);
