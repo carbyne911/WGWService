@@ -1436,6 +1436,7 @@ static janus_callbacks *gateway = NULL;
 static GThread *handler_thread;
 static char *auth_secret = NULL;												 /*CARBYNE-AUT*/
 static char *rtsp_url = NULL;													 /*CARBYNE-RF*/
+static gboolean dynamic_url_status = FALSE;										 /*CARBYNE-RF*/
 static gboolean auth_enabled = FALSE;											 /*CARBYNE-AUT*/
 static gboolean janus_auth_check_signature(const char *token, const char *room); /*CARBYNE-AUT*/
 
@@ -2474,7 +2475,6 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 	config_folder = config_path;
 	if (config != NULL)
 		janus_config_print(config);
-
 	/*CARBYNE-GST*/
 	/* Initialize GStreamer */
 	gst_init(NULL, NULL);
@@ -2490,6 +2490,21 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 	{
 		janus_config_category *config_general = janus_config_get_create(config, NULL, janus_config_type_category, "general");
 		/*CARBYNE-RF*/
+		janus_config_item *dynamic_url = janus_config_get(config, config_general, janus_config_type_item, "dynamic_url");
+		if (dynamic_url && !janus_is_true(dynamic_url->value) ){
+			janus_config_item *item_rtsp = janus_config_get(config, config_general, janus_config_type_item, "rtsp_url");
+			if (item_rtsp && item_rtsp->value)
+			{
+				JANUS_LOG(LOG_INFO,"RTSP Dynamic URL is disabled using static\n");
+				rtsp_url = g_strdup(item_rtsp->value);
+				JANUS_LOG(LOG_VERB, "rtsp_url: %s\n", rtsp_url);
+			}
+		}
+		else
+		{
+			dynamic_url_status = TRUE;
+			JANUS_LOG(LOG_INFO,"RTSP Dynamic URL is enabled\n");
+		}
 		/*CARBYNE-RF end*/
 		/*CARBYNE-AUT*/
 		janus_config_item *item = janus_config_get(config, config_general, janus_config_type_item, "plugin_auth_secret");
@@ -3561,9 +3576,14 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		json_t *rec_dir = json_object_get(root, "rec_dir");
 		json_t *lock_record = json_object_get(root, "lock_record");
 		json_t *permanent = json_object_get(root, "permanent");
-		json_t *sgwURL = json_object_get(root, "sgwURL");
-		json_t *sgwUsername = json_object_get(root, "sgwUsername");
-		json_t *sgwPassword = json_object_get(root, "sgwPassword");
+		json_t *sgwURL;
+		json_t *sgwUsername;
+		json_t *sgwPassword; 
+		if(dynamic_url_status){
+			sgwURL = json_object_get(root, "sgwURL");
+			sgwUsername = json_object_get(root, "sgwUsername");
+			sgwPassword = json_object_get(root, "sgwPassword");
+		}
 		
 		
 		if (allowed)
@@ -3702,9 +3722,12 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		}
 		videoroom->room_id = room_id;
 		videoroom->room_id_str = room_id_str ? g_strdup(room_id_str) : NULL;
-		videoroom->sgwURL = g_strdup(json_string_value(sgwURL));
-		videoroom->sgwUsername = g_strdup(json_string_value(sgwUsername));
-		videoroom->sgwPassword = g_strdup(json_string_value(sgwPassword));
+		if(dynamic_url_status){
+
+			videoroom->sgwURL = g_strdup(json_string_value(sgwURL));
+			videoroom->sgwUsername = g_strdup(json_string_value(sgwUsername));
+			videoroom->sgwPassword = g_strdup(json_string_value(sgwPassword));
+		}
 		if (room_id_allocated)
 			g_free(room_id_str);
 		char *description = NULL;
@@ -4020,6 +4043,7 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		json_object_set_new(response, "videoroom", json_string("created"));
 		json_object_set_new(response, "room", string_ids ? json_string(videoroom->room_id_str) : json_integer(videoroom->room_id));
 		json_object_set_new(response, "permanent", save ? json_true() : json_false());
+		if(dynamic_url_status) json_object_set_new(response, "sgwURL", json_string(videoroom->sgwURL));
 		/* Also notify event handlers */
 		if (notify_events && gateway->events_is_enabled())
 		{
@@ -4064,6 +4088,16 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		json_t *publishers = json_object_get(root, "new_publishers");
 		json_t *lock_record = json_object_get(root, "new_lock_record");
 		json_t *permanent = json_object_get(root, "permanent");
+		json_t *sgwURL;
+		json_t *sgwUsername;
+		json_t *sgwPassword; 
+		if(dynamic_url_status){
+			sgwURL = json_object_get(root, "sgwURL");
+			sgwUsername = json_object_get(root, "sgwUsername");
+			sgwPassword = json_object_get(root, "sgwPassword");
+		}
+		
+			
 		gboolean save = permanent ? json_is_true(permanent) : FALSE;
 		if (save && config == NULL)
 		{
@@ -4081,6 +4115,24 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 			goto prepare_response;
 		}
 		/* Edit the room properties that were provided */
+		if(sgwURL != NULL && strlen(json_string_value(sgwURL)) > 0){
+			char *old_url = videoroom->room_name;
+			char *new_url = g_strdup(json_string_value(sgwURL));
+			videoroom->sgwURL = new_url;
+			g_free(old_url);
+		}
+		if(sgwUsername != NULL && strlen(json_string_value(sgwUsername)) > 0){
+			char *old_sgwUsername = videoroom->sgwUsername;
+			char *new_sgwUsername = g_strdup(json_string_value(sgwUsername));
+			videoroom->sgwUsername = new_sgwUsername;
+			g_free(old_sgwUsername);
+		}
+		if(sgwPassword != NULL && strlen(json_string_value(sgwPassword)) > 0){
+			char *old_sgwPassword = videoroom->sgwPassword;
+			char *new_sgwPassword = g_strdup(json_string_value(sgwPassword));
+			videoroom->sgwPassword = new_sgwPassword;
+			g_free(old_sgwPassword);
+		}
 		if (desc != NULL && strlen(json_string_value(desc)) > 0)
 		{
 			char *old_description = videoroom->room_name;
@@ -4208,6 +4260,8 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		json_object_set_new(response, "videoroom", json_string("edited"));
 		json_object_set_new(response, "room", string_ids ? json_string(videoroom->room_id_str) : json_integer(videoroom->room_id));
 		json_object_set_new(response, "permanent", save ? json_true() : json_false());
+		if(dynamic_url_status) json_object_set_new(response, "sgwURL", json_string(videoroom->sgwURL));
+		
 		/* Also notify event handlers */
 		if (notify_events && gateway->events_is_enabled())
 		{
@@ -4408,7 +4462,7 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 				json_object_set_new(rl, "videoorient_ext", room->videoorient_ext ? json_true() : json_false());
 				json_object_set_new(rl, "playoutdelay_ext", room->playoutdelay_ext ? json_true() : json_false());
 				json_object_set_new(rl, "transport_wide_cc_ext", room->transport_wide_cc_ext ? json_true() : json_false());
-				json_object_set_new(rl, "sgwURL", json_string(room->sgwURL));
+				json_object_set_new(rl, "sgwURL", json_string(dynamic_url_status? room->sgwURL : rtsp_url));
 				json_array_append_new(list, rl);
 			}
 			janus_refcount_decrease(&room->ref);
@@ -6786,13 +6840,15 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		break;
 	case MEDIA_VIDEO:
 		gstr = &room->gst_thread_parameters[MEDIA_VIDEO].gstr;
-		g_snprintf(rtsp_url_base,JANUS_RTP_FORWARD_STRING_SIZE,"rtsp://%s:%s@%s:1935/ClientVideo/",room->sgwUsername,room->sgwPassword,room->sgwURL);
+		if(dynamic_url_status){
+			g_snprintf(rtsp_url_base,JANUS_RTP_FORWARD_STRING_SIZE,"rtsp://%s:%s@%s:1935/ClientVideo/",room->sgwUsername,room->sgwPassword,room->sgwURL);
+		}
 		
 		
 		JANUS_LOG(LOG_INFO,"room %s  rtsp target: %s\n",room->room_id_str,rtsp_full_url);
 		IS_PARAM_IN_LIMITS(g_snprintf(log_string, MAX_STRING_LEN, "VIDEO %s", room->room_id_str),
 						   "log_string", 0, MAX_STRING_LEN);
-		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sVIDEO_%s", rtsp_url_base, room->room_id_str),
+		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sVIDEO_%s", dynamic_url_status ? rtsp_url_base : rtsp_url, room->room_id_str),
 						   "rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
 		JANUS_LOG(LOG_INFO, "CARBYNE:::::RtpUrl = %s\n", rtsp_full_url); 
 		if (vcodec == JANUS_VIDEOCODEC_VP8)
