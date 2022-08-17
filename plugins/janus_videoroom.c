@@ -6815,12 +6815,16 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 	case MEDIA_AUDIO_INGRESS:
 	case MEDIA_AUDIO_EGRESS:
 		gstr = &room->gst_thread_parameters[media_type].gstr;
+		if(dynamic_url_status){
+			g_snprintf(rtsp_url_base,JANUS_RTP_FORWARD_STRING_SIZE,"rtsp://%s:%s@%s:1935/ClientVideo/", room->sgwUsername, room->sgwPassword, room->sgwURL);
+		}
+
 		IS_PARAM_IN_LIMITS(g_snprintf(log_string, MAX_STRING_LEN,
 									  "AUDIO %s %s", AUDIO_DIRECTION_STRING_FROM_TYPE(media_type), room->room_id_str),
 						   "log_string", 0, MAX_STRING_LEN);
 
 		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE,
-									  "%s%s_AUDIO_%s", rtsp_url, AUDIO_DIRECTION_STRING_FROM_TYPE(media_type), room->room_id_str),
+									  "%s%s_AUDIO_%s", dynamic_url_status ? rtsp_url_base : rtsp_url, AUDIO_DIRECTION_STRING_FROM_TYPE(media_type), room->room_id_str),
 						   "rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
 
 		if (JANUS_AUDIOCODEC_OPUS == acodec)
@@ -6841,7 +6845,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 	case MEDIA_VIDEO:
 		gstr = &room->gst_thread_parameters[MEDIA_VIDEO].gstr;
 		if(dynamic_url_status){
-			g_snprintf(rtsp_url_base,JANUS_RTP_FORWARD_STRING_SIZE,"rtsp://%s:%s@%s:1935/ClientVideo/",room->sgwUsername,room->sgwPassword,room->sgwURL);
+			g_snprintf(rtsp_url_base,JANUS_RTP_FORWARD_STRING_SIZE,"rtsp://%s:%s@%s:1935/ClientVideo/", room->sgwUsername, room->sgwPassword, room->sgwURL);
 		}
 		
 		
@@ -6891,11 +6895,14 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		break;
 	case MEDIA_AUDIO_MIXER:
 		gstr = &room->gst_thread_parameters[MEDIA_AUDIO_MIXER].gstr;
-
+		if(dynamic_url_status){
+			g_snprintf(rtsp_url_base,JANUS_RTP_FORWARD_STRING_SIZE,"rtsp://%s:%s@%s:1935/ClientVideo/", room->sgwUsername, room->sgwPassword, room->sgwURL);
+		}
+		
 		IS_PARAM_IN_LIMITS(g_snprintf(log_string, MAX_STRING_LEN, "AUDIO MIXER %s", room->room_id_str),
 						   "log_string", 0, MAX_STRING_LEN);
 
-		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sAUDIO_%s", rtsp_url, room->room_id_str),
+		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sAUDIO_%s", dynamic_url_status ? rtsp_url_base : rtsp_url, room->room_id_str),
 						   "rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
 
 		if (JANUS_AUDIOCODEC_OPUS == acodec)
