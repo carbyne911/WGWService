@@ -58,22 +58,22 @@ extern char *janus_log_global_prefix;
 static const char *janus_log_prefix[] = {
 /* no colors */
 	"",
-	"[FATAL] ",
-	"[ERR] ",
-	"[WARN] ",
-	"",
-	"",
-	"",
-	"",
+	"[FATAL] ", 	//1
+	"[ERR] ",  	 	//2
+	"[WARN] ",  	//3
+	"[INFO] ",		//4
+	"[DEBUG1] ",	//5 
+	"[DEBUG2] ",	//6
+	"[DEBUG3] ",	//7
 /* with colors */
 	"",
 	ANSI_COLOR_MAGENTA "[FATAL]" ANSI_COLOR_RESET " ",
 	ANSI_COLOR_RED "[ERR]" ANSI_COLOR_RESET " ",
 	ANSI_COLOR_YELLOW "[WARN]" ANSI_COLOR_RESET " ",
-	"",
-	"",
-	"",
-	""
+	ANSI_COLOR_BLUE "[INFO]" ANSI_COLOR_RESET " ",
+	"[DEBUG1] ",
+	"[DEBUG2] ",
+	"[DEBUG3] "
 };
 ///@}
 
