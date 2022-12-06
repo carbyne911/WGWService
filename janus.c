@@ -3451,7 +3451,7 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
         guint unprocessedTasksInPool = g_thread_pool_unprocessed(tasks);
         guint threadsInPool = g_thread_pool_get_num_threads(tasks);
         gint maxThreadsInPool = g_thread_pool_get_max_threads(tasks);
-        JANUS_LOG(LOG_INFO, "Task pool state: unprocessed task=%u, threads[curr/max] %u/%i\n");
+        JANUS_LOG(LOG_INFO, "Task pool state: unprocessed task=%llu, threads[curr/max] %llu/%lli\n");
     }
 
 	//checking RAM usage
