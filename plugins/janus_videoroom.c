@@ -10605,8 +10605,8 @@ static gboolean janus_auth_check_signature(const char *token, const char *room)
 	}
 
 	JANUS_LOG(LOG_VERB, "janus_videoroom: auth: auth_secret:%s \n", auth_secret);
-	JANUS_LOG(LOG_VERB, "janus_videoroom: auth:     token:%s \n", token);
-	JANUS_LOG(LOG_VERB, "janus_videoroom: auth:        room:%s \n", room);
+	JANUS_LOG(LOG_VERB, "janus_videoroom: auth: token:%s \n", token);
+	JANUS_LOG(LOG_VERB, "janus_videoroom: auth: room:%s \n", room);
 
 	if (token == NULL || room == NULL)
 	{
@@ -10674,7 +10674,7 @@ static gboolean janus_auth_check_signature(const char *token, const char *room)
 	{
 		goto fail;
 	}
-	JANUS_LOG(LOG_VERB, "janus_videoroom: auth: message of  token:%s \n", message);
+	JANUS_LOG(LOG_VERB, "janus_videoroom: auth: message of token:%s \n", message);
 	/* Verify HMAC-SHA256 */
 	unsigned char signature[EVP_MAX_MD_SIZE] = {0};
 	unsigned int len = 0;
@@ -10708,7 +10708,7 @@ static gboolean janus_auth_check_signature(const char *token, const char *room)
 			break;
 		}
 	}
-	JANUS_LOG(LOG_VERB, "janus_videoroom: auth: singatureBase64URLSafe:%s \n", singatureBase64URLSafe);
+	JANUS_LOG(LOG_VERB, "janus_videoroom: auth: signatureBase64URLSafe:%s \n", singatureBase64URLSafe);
 	gboolean result = janus_strcmp_const_time(parts[2], singatureBase64URLSafe);
 	g_strfreev(parts);
 	g_free(base64);
