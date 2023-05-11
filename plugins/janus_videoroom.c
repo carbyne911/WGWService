@@ -6637,7 +6637,7 @@ void janus_videoroom_incoming_rtp(janus_plugin_session *handle, janus_plugin_rtp
 
 static gboolean busCall(GstBus *bus, GstMessage *bus_msg, GMainLoop *loop)
 {
-	GError *bus_err;
+	GError *bus_err = NULL;
 	gchar *bus_debug_info;
 	if (bus_msg != NULL)
 	{
@@ -6645,13 +6645,15 @@ static gboolean busCall(GstBus *bus, GstMessage *bus_msg, GMainLoop *loop)
 		{
 		case GST_MESSAGE_ERROR:
 			gst_message_parse_error(bus_msg, &bus_err, &bus_debug_info);
-			JANUS_LOG(LOG_ERR, "CARBYNE:: Got GST BUS  error received from element %s: %d (%s) ...\n", GST_OBJECT_NAME(bus_msg->src), bus_err->code, bus_err->message ? bus_err->message : "??");
-			JANUS_LOG(LOG_ERR, "CARBYNE:: GST BUS Debugging information: %s\n", bus_debug_info ? bus_debug_info : "none");
 			if (bus_err != NULL)
+			{
+				JANUS_LOG(LOG_ERR, "CARBYNE:: Got GST BUS  error received from element %s: %d (%s) ...\n", GST_OBJECT_NAME(bus_msg->src), bus_err->code, bus_err->message ? bus_err->message : "??");
 				g_clear_error(&bus_err);
+			}
+			JANUS_LOG(LOG_ERR, "CARBYNE:: GST BUS Debugging information: %s\n", bus_debug_info ? bus_debug_info : "none");
 			g_free(bus_debug_info);
 			// g_atomic_int_set(rtspRun,0);
-			if (g_main_loop_is_running(loop))
+			if (bus_err && bus_err->code != 10 && g_main_loop_is_running(loop))
 			{
 				g_main_loop_quit(loop);
 			}
