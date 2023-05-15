@@ -6653,7 +6653,7 @@ static gboolean busCall(GstBus *bus, GstMessage *bus_msg, GMainLoop *loop)
 			JANUS_LOG(LOG_ERR, "CARBYNE:: GST BUS Debugging information: %s\n", bus_debug_info ? bus_debug_info : "none");
 			g_free(bus_debug_info);
 			// g_atomic_int_set(rtspRun,0);
-			if (bus_err && bus_err->code != 10 && g_main_loop_is_running(loop))
+			if (bus_err && bus_err->code != 10 && bus_err->code != 7 && g_main_loop_is_running(loop))
 			{
 				g_main_loop_quit(loop);
 			}
