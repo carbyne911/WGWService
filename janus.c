@@ -3525,7 +3525,6 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 		 {
 		    if(strstr(sgwline,"true") == NULL)
 			{
-				JANUS_LOG(LOG_ERR,"SGW not Available\n");
 				sgwStatus = FALSE;
     	    }
     	} 
@@ -3549,7 +3548,7 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 	// check status at the end
 	if (sgwStatus != TRUE) 
 	{
-		return FALSE;
+		JANUS_LOG(LOG_WARN,"SGW not Available\n");
 	}
 
   	return TRUE;
