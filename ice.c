@@ -2744,15 +2744,7 @@ static void janus_ice_cb_nice_recv(NiceAgent *agent, guint stream_id, guint comp
 					return;
 				}
 				guint16 new_seqn = ntohs(header->seq_number);
-				/* If this is video, check if this is a keyframe: if so, we empty our NACK queue */
-				if(video && stream->video_is_keyframe) {
-					if(stream->video_is_keyframe(payload, plen)) {
-						if(rtcp_ctx && (int16_t)(new_seqn - rtcp_ctx->max_seq_nr) > 0) {
-							JANUS_LOG(LOG_HUGE, "[%"SCNu64"] Keyframe received with a highest sequence number, resetting NACK queue\n", handle->handle_id);
-							janus_seq_list_free(&component->last_seqs_video[vindex]);
-						}
-					}
-				}
+
 				guint16 cur_seqn;
 				int last_seqs_len = 0;
 				janus_mutex_lock(&component->mutex);
