@@ -1439,7 +1439,7 @@ static char *static_rtsp_url_base = NULL;												 /*CARBYNE-RF*/
 static gboolean dynamic_url_status = FALSE;										 /*CARBYNE-RF*/
 static gboolean use_ipv6 = FALSE;										 /*CARBYNE-RF*/
 static gboolean auth_enabled = FALSE;
-static uint32 jitter_buffer_ms = 0;
+static uint32_t jitter_buffer_ms = 0;
 /*CARBYNE-AUT*/
 static gboolean janus_auth_check_signature(const char *token, const char *room); /*CARBYNE-AUT*/
 
