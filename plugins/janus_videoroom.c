@@ -2524,15 +2524,16 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 		}
 
 		janus_config_item *jitter_buffer_from_config = janus_config_get(config, config_general, janus_config_type_item, "jitterbuffer_size_ms");
-		if (jitter_buffer_from_config && jitter_buffer_from_config->value)
+		jitter_buffer_ms = DEFAULT_JITTER_BUFFER_MS;
+        if (jitter_buffer_from_config && jitter_buffer_from_config->value)
 		{
-			int res = janus_string_to_uint32(jitter_buffer_from_config->value, &jitter_buffer_ms);
-			if (res)
+			if (janus_string_to_uint32(jitter_buffer_from_config->value, &jitter_buffer_ms))
 			{
-				jitter_buffer_ms = DEFAULT_JITTER_BUFFER_MS;
+				JANUS_LOG(LOG_ERR, "Invalid jitter buffer value: %s", jitter_buffer_from_config->value);
 			}
-			JANUS_LOG(LOG_INFO, "video jitter buffer: %ui ms\n", jitter_buffer_ms);
 		}
+
+		JANUS_LOG(LOG_INFO, "video jitter buffer: %ui ms\n", jitter_buffer_ms);
 
 		/*CARBYNE-RF end*/
 		/*CARBYNE-AUT*/
