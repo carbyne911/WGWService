@@ -2533,7 +2533,7 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 			}
 		}
 
-		JANUS_LOG(LOG_INFO, "video jitter buffer: %ui ms\n", jitter_buffer_ms);
+		JANUS_LOG(LOG_INFO, "video jitter buffer: %"PRIu32" ms\n", jitter_buffer_ms);
 
 		/*CARBYNE-RF end*/
 		/*CARBYNE-AUT*/
