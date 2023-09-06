@@ -1435,9 +1435,12 @@ static gboolean string_ids = FALSE;
 static janus_callbacks *gateway = NULL;
 static GThread *handler_thread;
 static char *auth_secret = NULL;												 /*CARBYNE-AUT*/
-static char *static_rtsp_url_base = NULL;													 /*CARBYNE-RF*/
+static char *static_rtsp_url_base = NULL;												 /*CARBYNE-RF*/
 static gboolean dynamic_url_status = FALSE;										 /*CARBYNE-RF*/
-static gboolean auth_enabled = FALSE;											 /*CARBYNE-AUT*/
+static gboolean auth_enabled = FALSE;
+static uint32_t jitter_buffer_ms = 0;
+/*CARBYNE-AUT*/
+
 static gboolean janus_auth_check_signature(const char *token, const char *room); /*CARBYNE-AUT*/
 
 static void *janus_gst_thread_runner(void *data); /*CARBYNE-GST*/
@@ -2446,6 +2449,8 @@ static void janus_videoroom_srtp_context_free(gpointer data)
 	}
 }
 
+#define DEFAULT_JITTER_BUFFER_MS 1000
+
 /* Plugin implementation */
 int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 {
@@ -2506,6 +2511,19 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 			dynamic_url_status = TRUE;
 			JANUS_LOG(LOG_INFO, "RTSP Dynamic URL is enabled\n");
 		}
+
+		janus_config_item *jitter_buffer_from_config = janus_config_get(config, config_general, janus_config_type_item, "jitterbuffer_size_ms");
+		jitter_buffer_ms = DEFAULT_JITTER_BUFFER_MS;
+		if (jitter_buffer_from_config && jitter_buffer_from_config->value)
+		{
+			if (janus_string_to_uint32(jitter_buffer_from_config->value, &jitter_buffer_ms))
+			{
+				JANUS_LOG(LOG_ERR, "Invalid jitter buffer value: %s", jitter_buffer_from_config->value);
+			}
+		}
+
+		JANUS_LOG(LOG_INFO, "video jitter buffer: %"PRIu32" ms\n", jitter_buffer_ms);
+
 		/*CARBYNE-RF end*/
 		/*CARBYNE-AUT*/
 		janus_config_item *item = janus_config_get(config, config_general, janus_config_type_item, "plugin_auth_secret");
@@ -6875,9 +6893,9 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
 										  "udpsrc address=127.0.0.1 port=0 name=%s "
 										  " caps=\"application/x-rtp,media=video,encoding-name=VP8\" !"
-										  " rtpjitterbuffer latency=1000 name=rtpjitterbufferVideo do-lost=true ! rtpvp8depay name=rtpvp8depayVideo ! queue name=queueVideo ! "
+                                          " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtpvp8depay wait-for-keyframe=true name=rtpvp8depayVideo ! queue name=queueVideo ! "
 										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
-										  UDPSRC_1_ELEMENT_NAME, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
+										  UDPSRC_1_ELEMENT_NAME, jitter_buffer_ms, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
 							   "launch_string", 0, MAX_STRING_LEN);
 		}
 		else if (vcodec == JANUS_VIDEOCODEC_H264)
@@ -6886,9 +6904,9 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
 										  "udpsrc address=127.0.0.1 port=0 name=%s"
 										  " caps=\"application/x-rtp,media=video,clock-rate=90000,profile-level-id=42e01f,encoding-name=H264\" !"
-										  " rtpjitterbuffer latency=1000 name=rtpjitterbufferVideo do-lost=true ! rtph264depay name=rtph264depayVideo ! h264parse name=h264parseVideo ! "
+										  " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtph264depay wait-for-keyframe=true name=rtph264depayVideo ! h264parse name=h264parseVideo ! "
 										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
-										  UDPSRC_1_ELEMENT_NAME, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
+										  UDPSRC_1_ELEMENT_NAME, jitter_buffer_ms, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
 							   "launch_string", 0, MAX_STRING_LEN);
 		}
 		else if (vcodec == JANUS_VIDEOCODEC_VP9)
@@ -6897,9 +6915,9 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
 										  "udpsrc address=127.0.0.1 port=0 name=%s "
 										  " caps=\"application/x-rtp,media=video,encoding-name=VP9\" !"
-										  " rtpjitterbuffer latency=1000 name=rtpjitterbufferVideo do-lost=true ! rtpvp9depay name=rtpvp8depayVideo ! queue name=queueVideo ! "
+										  " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtpvp9depay name=rtpvp8depayVideo ! queue name=queueVideo ! "
 										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
-										  UDPSRC_1_ELEMENT_NAME, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
+										  UDPSRC_1_ELEMENT_NAME, jitter_buffer_ms, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
 							   "launch_string", 0, MAX_STRING_LEN);
 		}
 		else
