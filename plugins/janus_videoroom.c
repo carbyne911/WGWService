@@ -2514,7 +2514,7 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 
 		janus_config_item *jitter_buffer_from_config = janus_config_get(config, config_general, janus_config_type_item, "jitterbuffer_size_ms");
 		jitter_buffer_ms = DEFAULT_JITTER_BUFFER_MS;
-        if (jitter_buffer_from_config && jitter_buffer_from_config->value)
+		if (jitter_buffer_from_config && jitter_buffer_from_config->value)
 		{
 			if (janus_string_to_uint32(jitter_buffer_from_config->value, &jitter_buffer_ms))
 			{
