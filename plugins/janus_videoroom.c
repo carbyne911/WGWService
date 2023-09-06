@@ -1437,10 +1437,10 @@ static GThread *handler_thread;
 static char *auth_secret = NULL;												 /*CARBYNE-AUT*/
 static char *static_rtsp_url_base = NULL;												 /*CARBYNE-RF*/
 static gboolean dynamic_url_status = FALSE;										 /*CARBYNE-RF*/
-static gboolean use_ipv6 = FALSE;										 /*CARBYNE-RF*/
 static gboolean auth_enabled = FALSE;
 static uint32_t jitter_buffer_ms = 0;
 /*CARBYNE-AUT*/
+
 static gboolean janus_auth_check_signature(const char *token, const char *room); /*CARBYNE-AUT*/
 
 static void *janus_gst_thread_runner(void *data); /*CARBYNE-GST*/
@@ -2510,17 +2510,6 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 		{
 			dynamic_url_status = TRUE;
 			JANUS_LOG(LOG_INFO, "RTSP Dynamic URL is enabled\n");
-		}
-		janus_config_item *use_ipv6_from_config = janus_config_get(config, config_general, janus_config_type_item, "use_ipv6");
-		if (use_ipv6_from_config && !janus_is_true(use_ipv6_from_config->value))
-		{
-			use_ipv6 = FALSE;
-			JANUS_LOG(LOG_INFO, "Using ipv4 Gstreamer\n");
-		}
-		else
-		{
-			use_ipv6 = TRUE;
-			JANUS_LOG(LOG_INFO, "Using ipv6 Gstreamer\n");
 		}
 
 		janus_config_item *jitter_buffer_from_config = janus_config_get(config, config_general, janus_config_type_item, "jitterbuffer_size_ms");
@@ -6844,7 +6833,6 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 	janus_gstr *gstr = NULL;
 	char rtsp_full_url[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
 	char dynamic_rtsp_url_base[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
-	char address_to_use[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
 	VERIFY_ELSE_RETURN_FALSE(NULL != room, "parameter room is empty\n");
 
 	if (MEDIA_AUDIO_MIXER == media_type)
@@ -6887,14 +6875,6 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		break;
 	case MEDIA_VIDEO:
 		gstr = &room->gst_thread_parameters[MEDIA_VIDEO].gstr;
-		
-		if(use_ipv6) {
-			
-			g_snprintf(address_to_use, JANUS_RTP_FORWARD_STRING_SIZE, "::1");
-		} else {
-			g_snprintf(address_to_use, JANUS_RTP_FORWARD_STRING_SIZE, "127.0.0.1");
-		}
-
 		if(dynamic_url_status)
 		{
 			g_snprintf(dynamic_rtsp_url_base, JANUS_RTP_FORWARD_STRING_SIZE, "rtsp://%s:%s@%s:1935/ClientVideo/", room->sgwUsername, room->sgwPassword, room->sgwURL);
@@ -6911,7 +6891,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		{
 			JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP8 --------------%s\n", log_string);
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
-										  "udpsrc address=%s port=0 name=%s "
+										  "udpsrc address=127.0.0.1 port=0 name=%s "
 										  " caps=\"application/x-rtp,media=video,encoding-name=VP8\" !"
                                           " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtpvp8depay wait-for-keyframe=true name=rtpvp8depayVideo ! queue name=queueVideo ! "
 										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
@@ -6922,7 +6902,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		{
 			JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_H264 --------------%s\n", log_string);
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
-										  "udpsrc address=%s port=0 name=%s"
+										  "udpsrc address=127.0.0.1 port=0 name=%s"
 										  " caps=\"application/x-rtp,media=video,clock-rate=90000,profile-level-id=42e01f,encoding-name=H264\" !"
 										  " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtph264depay wait-for-keyframe=true name=rtph264depayVideo ! h264parse name=h264parseVideo ! "
 										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
@@ -6933,7 +6913,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		{
 			JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_VIDEOCODEC_VP9 --------------%s\n", log_string);
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
-										  "udpsrc address=%s port=0 name=%s "
+										  "udpsrc address=127.0.0.1 port=0 name=%s "
 										  " caps=\"application/x-rtp,media=video,encoding-name=VP9\" !"
 										  " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtpvp9depay name=rtpvp8depayVideo ! queue name=queueVideo ! "
 										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
