@@ -1435,10 +1435,13 @@ static gboolean string_ids = FALSE;
 static janus_callbacks *gateway = NULL;
 static GThread *handler_thread;
 static char *auth_secret = NULL;												 /*CARBYNE-AUT*/
-static char *static_rtsp_url_base = NULL;													 /*CARBYNE-RF*/
+static char *static_rtsp_url_base = NULL;												 /*CARBYNE-RF*/
 static gboolean dynamic_url_status = FALSE;										 /*CARBYNE-RF*/
-static gboolean use_ipv6 = FALSE;										 /*CARBYNE-RF*/
-static gboolean auth_enabled = FALSE;											 /*CARBYNE-AUT*/
+static gboolean auth_enabled = FALSE;
+static uint32_t jitter_buffer_ms = 0;
+static gboolean use_ipv6 = FALSE;
+/*CARBYNE-AUT*/
+
 static gboolean janus_auth_check_signature(const char *token, const char *room); /*CARBYNE-AUT*/
 
 static void *janus_gst_thread_runner(void *data); /*CARBYNE-GST*/
@@ -2447,6 +2450,8 @@ static void janus_videoroom_srtp_context_free(gpointer data)
 	}
 }
 
+#define DEFAULT_JITTER_BUFFER_MS 1000
+
 /* Plugin implementation */
 int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 {
@@ -2517,6 +2522,18 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 			use_ipv6 = TRUE;
 			JANUS_LOG(LOG_INFO, "Using ipv6 Gstreamer\n");
 		}
+		janus_config_item *jitter_buffer_from_config = janus_config_get(config, config_general, janus_config_type_item, "jitterbuffer_size_ms");
+		jitter_buffer_ms = DEFAULT_JITTER_BUFFER_MS;
+		if (jitter_buffer_from_config && jitter_buffer_from_config->value)
+		{
+			if (janus_string_to_uint32(jitter_buffer_from_config->value, &jitter_buffer_ms))
+			{
+				JANUS_LOG(LOG_ERR, "Invalid jitter buffer value: %s", jitter_buffer_from_config->value);
+			}
+		}
+
+		JANUS_LOG(LOG_INFO, "video jitter buffer: %"PRIu32" ms\n", jitter_buffer_ms);
+
 		/*CARBYNE-RF end*/
 		/*CARBYNE-AUT*/
 		janus_config_item *item = janus_config_get(config, config_general, janus_config_type_item, "plugin_auth_secret");
@@ -6826,7 +6843,6 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 	janus_gstr *gstr = NULL;
 	char rtsp_full_url[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
 	char dynamic_rtsp_url_base[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
-	char address_to_use[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
 	VERIFY_ELSE_RETURN_FALSE(NULL != room, "parameter room is empty\n");
 
 	if (MEDIA_AUDIO_MIXER == media_type)
@@ -6855,11 +6871,11 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		if (JANUS_AUDIOCODEC_OPUS == acodec)
 		{
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
-										  "udpsrc address=127.0.0.1 port=0 name=%s"
+										  "udpsrc address=%s port=0 name=%s"
 										  " caps=\"application/x-rtp,media=audio,encoding-name=OPUS\" !"
 										  " queue max-size-time=1000000 name=queueAudio ! rtpopusdepay name=rtpopusdepayAudio ! opusparse name=opusparseAudio ! "
 										  " rtspclientsink name=rtspClientSinkAudio  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=3000000 location=\"%s\" latency=0",
-										  UDPSRC_1_ELEMENT_NAME, rtsp_full_url),
+										  address_to_use,UDPSRC_1_ELEMENT_NAME, rtsp_full_url),
 							   "launch_string", 0, MAX_STRING_LEN);
 		}
 		else
@@ -6869,14 +6885,6 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		break;
 	case MEDIA_VIDEO:
 		gstr = &room->gst_thread_parameters[MEDIA_VIDEO].gstr;
-		
-		if(use_ipv6) {
-			
-			g_snprintf(address_to_use, JANUS_RTP_FORWARD_STRING_SIZE, "::1");
-		} else {
-			g_snprintf(address_to_use, JANUS_RTP_FORWARD_STRING_SIZE, "127.0.0.1");
-		}
-
 		if(dynamic_url_status)
 		{
 			g_snprintf(dynamic_rtsp_url_base, JANUS_RTP_FORWARD_STRING_SIZE, "rtsp://%s:%s@%s:1935/ClientVideo/", room->sgwUsername, room->sgwPassword, room->sgwURL);
@@ -6895,9 +6903,9 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
 										  "udpsrc address=%s port=0 name=%s "
 										  " caps=\"application/x-rtp,media=video,encoding-name=VP8\" !"
-										  " rtpjitterbuffer latency=1000 name=rtpjitterbufferVideo do-lost=true ! rtpvp8depay name=rtpvp8depayVideo ! queue name=queueVideo ! "
+                                          " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtpvp8depay wait-for-keyframe=true name=rtpvp8depayVideo ! queue name=queueVideo ! "
 										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
-										  address_to_use,UDPSRC_1_ELEMENT_NAME, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
+										  address_to_use,UDPSRC_1_ELEMENT_NAME, jitter_buffer_ms, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
 							   "launch_string", 0, MAX_STRING_LEN);
 		}
 		else if (vcodec == JANUS_VIDEOCODEC_H264)
@@ -6906,9 +6914,9 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
 										  "udpsrc address=%s port=0 name=%s"
 										  " caps=\"application/x-rtp,media=video,clock-rate=90000,profile-level-id=42e01f,encoding-name=H264\" !"
-										  " rtpjitterbuffer latency=1000 name=rtpjitterbufferVideo do-lost=true ! rtph264depay name=rtph264depayVideo ! h264parse name=h264parseVideo ! "
+										  " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtph264depay wait-for-keyframe=true name=rtph264depayVideo ! h264parse name=h264parseVideo ! "
 										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
-										  address_to_use,UDPSRC_1_ELEMENT_NAME, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
+										  address_to_use,UDPSRC_1_ELEMENT_NAME, jitter_buffer_ms, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
 							   "launch_string", 0, MAX_STRING_LEN);
 		}
 		else if (vcodec == JANUS_VIDEOCODEC_VP9)
@@ -6917,9 +6925,9 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
 										  "udpsrc address=%s port=0 name=%s "
 										  " caps=\"application/x-rtp,media=video,encoding-name=VP9\" !"
-										  " rtpjitterbuffer latency=1000 name=rtpjitterbufferVideo do-lost=true ! rtpvp9depay name=rtpvp8depayVideo ! queue name=queueVideo ! "
+										  " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtpvp9depay name=rtpvp8depayVideo ! queue name=queueVideo ! "
 										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
-										  address_to_use,UDPSRC_1_ELEMENT_NAME, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
+										  address_to_use,UDPSRC_1_ELEMENT_NAME, jitter_buffer_ms, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
 							   "launch_string", 0, MAX_STRING_LEN);
 		}
 		else
@@ -6945,19 +6953,19 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 			JANUS_LOG(LOG_INFO, "CARBYNE:::::--------------- JANUS_AUDIOCODEC_OPUS --------------%s\n", log_string);
 			/* setup pipeline */
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
-										  "udpsrc  address=127.0.0.1 port=0  name=%s timeout=60000000000"
+										  "udpsrc  address=%s port=0  name=%s timeout=60000000000"
 										  " caps=\"application/x-rtp,media=audio,encoding-name=OPUS\" !"
 										  " queue max-size-time=1000000 name=queueMixer1 ! rtpopusdepay name=rtpopusdepayMixer1 ! opusdec name=opusdecMixer1 !"
 										  " audio/x-raw,channels=1 ! audiomixmatrix in-channels=1 out-channels=2 channel-mask=-1 matrix=\"<<(double)1.0>,<(double)0.0>>\" ! audio/x-raw,channels=2 ! queue max-size-time=1000000 !"
 										  " audiomixer name=audiomixerMixer ! audioconvert name=audioconvertcMixer !"
 										  " audio/x-raw,rate=(int)48000,channels=(int)2 ! voaacenc bitrate=320000 ! rtspclientsink name=rtspclientsinkMixer  protocols=GST_RTSP_LOWER_TRANS_TCP "
 										  " tcp-timeout=3000000 location=\"%s\" latency=0"
-										  " udpsrc  address=127.0.0.1 port=0  name=%s timeout=60000000000"
+										  " udpsrc  address=%s port=0  name=%s timeout=60000000000"
 										  " caps=\"application/x-rtp,media=audio,encoding-name=OPUS\" ! "
 										  " queue name=queueMixer2 max-size-time=1000000 ! rtpopusdepay  name=rtpopusdepayMixer2  ! opusdec  name=opusdecMixer2 !"
   										  " audio/x-raw,channels=1 ! audiomixmatrix in-channels=1 out-channels=2 channel-mask=-1 matrix=\"<<(double)0.0>,<(double)1.0>>\" ! audio/x-raw,channels=2 ! queue max-size-time=1000000 !"
 										  " audiomixerMixer. ",
-										  UDPSRC_1_ELEMENT_NAME, rtsp_full_url, UDPSRC_2_ELEMENT_NAME),
+										  address_to_use,UDPSRC_1_ELEMENT_NAME, rtsp_full_url, address_to_use, UDPSRC_2_ELEMENT_NAME),
 							   "launch_string", 0, MAX_STRING_LEN);
 		}
 		else
