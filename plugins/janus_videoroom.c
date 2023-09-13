@@ -6843,6 +6843,14 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 	janus_gstr *gstr = NULL;
 	char rtsp_full_url[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
 	char dynamic_rtsp_url_base[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
+	char address_to_use[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
+		if(use_ipv6) {
+			
+			g_snprintf(address_to_use, JANUS_RTP_FORWARD_STRING_SIZE, "::1");
+		} else {
+			g_snprintf(address_to_use, JANUS_RTP_FORWARD_STRING_SIZE, "127.0.0.1");
+		}
+	
 	VERIFY_ELSE_RETURN_FALSE(NULL != room, "parameter room is empty\n");
 
 	if (MEDIA_AUDIO_MIXER == media_type)
