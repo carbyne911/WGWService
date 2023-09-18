@@ -2515,7 +2515,7 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 		janus_config_item *use_ipv6 = janus_config_get(config, config_general, janus_config_type_item, "use_ipv6");
 		if (!use_ipv6 || !janus_is_true(use_ipv6->value))
 		{
-				JANUS_LOG(LOG_VERB, "Using ipv4 Gstreamer\n");
+			JANUS_LOG(LOG_VERB, "Using ipv4 Gstreamer\n");
 		}
 		else
 		{
