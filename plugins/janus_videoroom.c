@@ -1439,7 +1439,7 @@ static char *static_rtsp_url_base = NULL;												 /*CARBYNE-RF*/
 static gboolean dynamic_url_status = FALSE;										 /*CARBYNE-RF*/
 static gboolean auth_enabled = FALSE;
 static uint32_t jitter_buffer_ms = 0;
-static gboolean use_ipv6 = FALSE;
+static gboolean use_ipv6_status = FALSE;
 /*CARBYNE-AUT*/
 
 static gboolean janus_auth_check_signature(const char *token, const char *room); /*CARBYNE-AUT*/
@@ -2512,14 +2512,14 @@ int janus_videoroom_init(janus_callbacks *callback, const char *config_path)
 			dynamic_url_status = TRUE;
 			JANUS_LOG(LOG_INFO, "RTSP Dynamic URL is enabled\n");
 		}
-		janus_config_item *use_ipv6_val = janus_config_get(config, config_general, janus_config_type_item, "use_ipv6");
-		if (use_ipv6 && !janus_is_true(use_ipv6_val->value))
+		janus_config_item *use_ipv6 = janus_config_get(config, config_general, janus_config_type_item, "use_ipv6");
+		if (use_ipv6 && !janus_is_true(use_ipv6->value))
 		{
 				JANUS_LOG(LOG_VERB, "Using ipv4 Gstreamer\n");
 		}
 		else
 		{
-			use_ipv6 = TRUE;
+			use_ipv6_status = TRUE;
 			JANUS_LOG(LOG_INFO, "Using ipv6 Gstreamer\n");
 		}
 		janus_config_item *jitter_buffer_from_config = janus_config_get(config, config_general, janus_config_type_item, "jitterbuffer_size_ms");
@@ -6844,7 +6844,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 	char rtsp_full_url[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
 	char dynamic_rtsp_url_base[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
 	char address_to_use[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
-		if(use_ipv6) {
+		if(use_ipv6_status) {
 			
 			g_snprintf(address_to_use, JANUS_RTP_FORWARD_STRING_SIZE, "::1");
 		} else {
