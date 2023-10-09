@@ -6202,19 +6202,11 @@ void janus_videoroom_setup_media(janus_plugin_session *handle)
 			/*CARBYNE:  Forward Support for Audio started with video */
 			if (participant->audio)
 			{
-				if (!forward_media(session, PUBLISHER_MEDIA_AUDIO))
-				{
-					janus_refcount_decrease(&participant->ref);
-					goto error;
-				}
+				forward_media(session, PUBLISHER_MEDIA_AUDIO);
 			}
 			if (participant->video)
 			{
-				if (!forward_media(session, PUBLISHER_MEDIA_VIDEO))
-				{
-					janus_refcount_decrease(&participant->ref);
-					goto error;
-				}
+				forward_media(session, PUBLISHER_MEDIA_VIDEO);
 			}
 			janus_refcount_decrease(&participant->ref);
 		}
