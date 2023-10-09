@@ -6840,9 +6840,9 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 	char rtsp_base_url[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
 	if(dynamic_url_status)
 	{
-		VERIFY_ELSE_RETURN_FALSE(NULL != room->sgwUsername);
-		VERIFY_ELSE_RETURN_FALSE(NULL != room->sgwPassword);
-		VERIFY_ELSE_RETURN_FALSE(NULL != room->sgwURL);
+		VERIFY_ELSE_RETURN_FALSE(NULL != room->sgwUsername, "sgwUsername is NULL\n");
+		VERIFY_ELSE_RETURN_FALSE(NULL != room->sgwPassword, "sgwPassword is NULL\n");
+		VERIFY_ELSE_RETURN_FALSE(NULL != room->sgwURL, "sgwURL is NULL\n");
 		g_snprintf(rtsp_base_url, JANUS_RTP_FORWARD_STRING_SIZE, "rtsp://%s:%s@%s:1935/ClientVideo/", room->sgwUsername, room->sgwPassword, room->sgwURL);
 	} else
 	{
