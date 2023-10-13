@@ -8125,6 +8125,7 @@ static void *janus_videoroom_handler(void *data)
 			}
 			janus_refcount_increase(&videoroom->ref);
 			janus_mutex_unlock(&rooms_mutex);
+			janus_mutex_lock(&sessions_mutex);
 			janus_mutex_lock(&videoroom->mutex);
 			json_t *ptype = json_object_get(root, "ptype");
 			const char *ptype_text = json_string_value(ptype);
@@ -8137,6 +8138,7 @@ static void *janus_videoroom_handler(void *data)
 				if (error_code != 0)
 				{
 					janus_mutex_unlock(&videoroom->mutex);
+					janus_mutex_unlock(&sessions_mutex);
 					janus_refcount_decrease(&videoroom->ref);
 					goto error;
 				}
@@ -8155,6 +8157,7 @@ static void *janus_videoroom_handler(void *data)
 				if (error_code != 0)
 				{
 					janus_mutex_unlock(&videoroom->mutex);
+					janus_mutex_unlock(&sessions_mutex);
 					janus_refcount_decrease(&videoroom->ref);
 					goto error;
 				}
@@ -8166,6 +8169,7 @@ static void *janus_videoroom_handler(void *data)
 					if (token_text == NULL || g_hash_table_lookup(videoroom->allowed, token_text) == NULL)
 					{
 						janus_mutex_unlock(&videoroom->mutex);
+						janus_mutex_unlock(&sessions_mutex);
 						janus_refcount_decrease(&videoroom->ref);
 						JANUS_LOG(LOG_ERR, "Unauthorized (not in the allowed list)\n");
 						error_code = JANUS_VIDEOROOM_ERROR_UNAUTHORIZED;
@@ -8196,6 +8200,7 @@ static void *janus_videoroom_handler(void *data)
 					{
 						/* User ID already taken */
 						janus_mutex_unlock(&videoroom->mutex);
+						janus_mutex_unlock(&sessions_mutex);
 						janus_refcount_decrease(&videoroom->ref);
 						error_code = JANUS_VIDEOROOM_ERROR_ID_EXISTS;
 						JANUS_LOG(LOG_ERR, "User ID %s already exists\n", user_id_str);
@@ -8342,6 +8347,7 @@ static void *janus_videoroom_handler(void *data)
 					{
 						JANUS_LOG(LOG_ERR, "Participant asked for audio codec '%s', but it's not allowed (room %s, user %s)\n",
 								  json_string_value(audiocodec), publisher->room_id_str, publisher->user_id_str);
+						janus_mutex_unlock(&sessions_mutex);
 						janus_refcount_decrease(&publisher->ref);
 						error_code = JANUS_VIDEOROOM_ERROR_INVALID_ELEMENT;
 						g_snprintf(error_cause, 512, "Audio codec unavailable in this room");
@@ -8370,6 +8376,7 @@ static void *janus_videoroom_handler(void *data)
 					{
 						JANUS_LOG(LOG_ERR, "Participant asked for video codec '%s', but it's not allowed (room %s, user %s)\n",
 								  json_string_value(videocodec), publisher->room_id_str, publisher->user_id_str);
+						janus_mutex_unlock(&sessions_mutex);
 						janus_refcount_decrease(&publisher->ref);
 						error_code = JANUS_VIDEOROOM_ERROR_INVALID_ELEMENT;
 						g_snprintf(error_cause, 512, "Video codec unavailable in this room");
@@ -8422,6 +8429,7 @@ static void *janus_videoroom_handler(void *data)
 				{
 					janus_mutex_unlock(&session->mutex);
 					janus_mutex_unlock(&publisher->room->mutex);
+					janus_mutex_unlock(&sessions_mutex);
 					janus_refcount_decrease(&publisher->room->ref);
 					janus_videoroom_publisher_destroy(publisher);
 					JANUS_LOG(LOG_ERR, "Session destroyed, invalidating new publisher\n");
@@ -8512,6 +8520,7 @@ static void *janus_videoroom_handler(void *data)
 					gateway->notify_event(&janus_videoroom_plugin, session->handle, info);
 				}
 				janus_mutex_unlock(&publisher->room->mutex);
+				janus_mutex_unlock(&sessions_mutex);
 				if (user_id_allocated)
 					g_free(user_id_str);
 			}
@@ -8530,6 +8539,7 @@ static void *janus_videoroom_handler(void *data)
 				if (error_code != 0)
 				{
 					janus_mutex_unlock(&videoroom->mutex);
+					janus_mutex_unlock(&sessions_mutex);
 					janus_refcount_decrease(&videoroom->ref);
 					goto error;
 				}
@@ -8548,15 +8558,15 @@ static void *janus_videoroom_handler(void *data)
 				if (error_code != 0)
 				{
 					janus_mutex_unlock(&videoroom->mutex);
+					janus_mutex_unlock(&sessions_mutex);
 					janus_refcount_decrease(&videoroom->ref);
 					goto error;
 				}
-				janus_mutex_lock(&sessions_mutex);
 				session = janus_videoroom_lookup_session(msg->handle);
 				if (!session)
 				{
-					janus_mutex_unlock(&sessions_mutex);
 					janus_mutex_unlock(&videoroom->mutex);
+					janus_mutex_unlock(&sessions_mutex);
 					janus_refcount_decrease(&videoroom->ref);
 					JANUS_LOG(LOG_ERR, "No session associated with this handle...\n");
 					janus_videoroom_message_free(msg);
@@ -8564,8 +8574,8 @@ static void *janus_videoroom_handler(void *data)
 				}
 				if (g_atomic_int_get(&session->destroyed))
 				{
-					janus_mutex_unlock(&sessions_mutex);
 					janus_mutex_unlock(&videoroom->mutex);
+					janus_mutex_unlock(&sessions_mutex);
 					janus_refcount_decrease(&videoroom->ref);
 					janus_videoroom_message_free(msg);
 					continue;
@@ -8601,8 +8611,8 @@ static void *janus_videoroom_handler(void *data)
 					JANUS_LOG(LOG_ERR, "Invalid element (substream/spatial_layer should be 0, 1 or 2)\n");
 					error_code = JANUS_VIDEOROOM_ERROR_INVALID_ELEMENT;
 					g_snprintf(error_cause, 512, "Invalid value (substream/spatial_layer should be 0, 1 or 2)");
-					janus_mutex_unlock(&sessions_mutex);
 					janus_mutex_unlock(&videoroom->mutex);
+					janus_mutex_unlock(&sessions_mutex);
 					janus_refcount_decrease(&videoroom->ref);
 					goto error;
 				}
@@ -8614,8 +8624,8 @@ static void *janus_videoroom_handler(void *data)
 					JANUS_LOG(LOG_ERR, "Invalid element (temporal/temporal_layer should be 0, 1 or 2)\n");
 					error_code = JANUS_VIDEOROOM_ERROR_INVALID_ELEMENT;
 					g_snprintf(error_cause, 512, "Invalid value (temporal/temporal_layer should be 0, 1 or 2)");
-					janus_mutex_unlock(&sessions_mutex);
 					janus_mutex_unlock(&videoroom->mutex);
+					janus_mutex_unlock(&sessions_mutex);
 					janus_refcount_decrease(&videoroom->ref);
 					goto error;
 				}
@@ -8628,8 +8638,8 @@ static void *janus_videoroom_handler(void *data)
 					JANUS_LOG(LOG_ERR, "No such feed (%s)\n", feed_id_str);
 					error_code = JANUS_VIDEOROOM_ERROR_NO_SUCH_FEED;
 					g_snprintf(error_cause, 512, "No such feed (%s)", feed_id_str);
-					janus_mutex_unlock(&sessions_mutex);
 					janus_mutex_unlock(&videoroom->mutex);
+					janus_mutex_unlock(&sessions_mutex);
 					janus_refcount_decrease(&videoroom->ref);
 					goto error;
 				}
@@ -8650,8 +8660,8 @@ static void *janus_videoroom_handler(void *data)
 							g_snprintf(error_cause, 512, "Unauthorized (this room requires a valid private_id)");
 							janus_refcount_decrease(&publisher->session->ref);
 							janus_refcount_decrease(&publisher->ref);
-							janus_mutex_unlock(&sessions_mutex);
 							janus_mutex_unlock(&videoroom->mutex);
+							janus_mutex_unlock(&sessions_mutex);
 							janus_refcount_decrease(&videoroom->ref);
 							goto error;
 						}
