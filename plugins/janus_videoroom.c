@@ -2043,6 +2043,11 @@ static void janus_videoroom_room_free(const janus_refcount *room_ref)
 	g_free(room->rec_dir);
 	g_free(room->vp9_profile);
 	g_free(room->h264_profile);
+	// CARBYNE begin
+	g_free(room->sgwURL);
+	g_free(room->sgwUsername);
+	g_free(room->sgwPassword);
+	// CARBYNE end
 	g_hash_table_destroy(room->participants);
 	g_hash_table_destroy(room->private_ids);
 	g_hash_table_destroy(room->allowed);
@@ -4110,9 +4115,9 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		json_t *publishers = json_object_get(root, "new_publishers");
 		json_t *lock_record = json_object_get(root, "new_lock_record");
 		json_t *permanent = json_object_get(root, "permanent");
-		json_t *sgwURL;
-		json_t *sgwUsername;
-		json_t *sgwPassword;
+		json_t *sgwURL = NULL;
+		json_t *sgwUsername = NULL;
+		json_t *sgwPassword = NULL;
 		if(dynamic_url_status)
 		{
 			sgwURL = json_object_get(root, "sgwURL");
@@ -6197,19 +6202,11 @@ void janus_videoroom_setup_media(janus_plugin_session *handle)
 			/*CARBYNE:  Forward Support for Audio started with video */
 			if (participant->audio)
 			{
-				if (!forward_media(session, PUBLISHER_MEDIA_AUDIO))
-				{
-					janus_refcount_decrease(&participant->ref);
-					goto error;
-				}
+				forward_media(session, PUBLISHER_MEDIA_AUDIO);
 			}
 			if (participant->video)
 			{
-				if (!forward_media(session, PUBLISHER_MEDIA_VIDEO))
-				{
-					janus_refcount_decrease(&participant->ref);
-					goto error;
-				}
+				forward_media(session, PUBLISHER_MEDIA_VIDEO);
 			}
 			janus_refcount_decrease(&participant->ref);
 		}
@@ -6832,7 +6829,18 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 	GError *error = NULL;
 	janus_gstr *gstr = NULL;
 	char rtsp_full_url[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
-	char dynamic_rtsp_url_base[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
+	char rtsp_base_url[JANUS_RTP_FORWARD_STRING_SIZE] = {0};
+	if(dynamic_url_status)
+	{
+		VERIFY_ELSE_RETURN_FALSE(NULL != room->sgwUsername, "sgwUsername is NULL\n");
+		VERIFY_ELSE_RETURN_FALSE(NULL != room->sgwPassword, "sgwPassword is NULL\n");
+		VERIFY_ELSE_RETURN_FALSE(NULL != room->sgwURL, "sgwURL is NULL\n");
+		g_snprintf(rtsp_base_url, JANUS_RTP_FORWARD_STRING_SIZE, "rtsp://%s:%s@%s:1935/ClientVideo/", room->sgwUsername, room->sgwPassword, room->sgwURL);
+	} else
+	{
+		strncpy(rtsp_base_url, static_rtsp_url_base, JANUS_RTP_FORWARD_STRING_SIZE);
+	}
+
 	VERIFY_ELSE_RETURN_FALSE(NULL != room, "parameter room is empty\n");
 
 	if (MEDIA_AUDIO_MIXER == media_type)
@@ -6845,17 +6853,14 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 	case MEDIA_AUDIO_INGRESS:
 	case MEDIA_AUDIO_EGRESS:
 		gstr = &room->gst_thread_parameters[media_type].gstr;
-		if(dynamic_url_status)
-		{
-			g_snprintf(dynamic_rtsp_url_base, JANUS_RTP_FORWARD_STRING_SIZE, "rtsp://%s:%s@%s:1935/ClientVideo/", room->sgwUsername, room->sgwPassword, room->sgwURL);
-		}
+
 
 		IS_PARAM_IN_LIMITS(g_snprintf(log_string, MAX_STRING_LEN,
 									  "AUDIO %s %s", AUDIO_DIRECTION_STRING_FROM_TYPE(media_type), room->room_id_str),
 						   "log_string", 0, MAX_STRING_LEN);
 
 		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE,
-									  "%s%s_AUDIO_%s", dynamic_url_status ? dynamic_rtsp_url_base : static_rtsp_url_base, AUDIO_DIRECTION_STRING_FROM_TYPE(media_type), room->room_id_str),
+									  "%s%s_AUDIO_%s", rtsp_base_url, AUDIO_DIRECTION_STRING_FROM_TYPE(media_type), room->room_id_str),
 						   "rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
 
 		if (JANUS_AUDIOCODEC_OPUS == acodec)
@@ -6875,16 +6880,11 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		break;
 	case MEDIA_VIDEO:
 		gstr = &room->gst_thread_parameters[MEDIA_VIDEO].gstr;
-		if(dynamic_url_status)
-		{
-			g_snprintf(dynamic_rtsp_url_base, JANUS_RTP_FORWARD_STRING_SIZE, "rtsp://%s:%s@%s:1935/ClientVideo/", room->sgwUsername, room->sgwPassword, room->sgwURL);
-		}
-
 
 		JANUS_LOG(LOG_INFO,"room %s  rtsp target: %s\n", room->room_id_str, rtsp_full_url);
 		IS_PARAM_IN_LIMITS(g_snprintf(log_string, MAX_STRING_LEN, "VIDEO %s", room->room_id_str),
 						   "log_string", 0, MAX_STRING_LEN);
-		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sVIDEO_%s", dynamic_url_status ? dynamic_rtsp_url_base : static_rtsp_url_base, room->room_id_str),
+		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sVIDEO_%s", rtsp_base_url, room->room_id_str),
 						   "rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
 		JANUS_LOG(LOG_INFO, "CARBYNE:::::RtpUrl = %s\n", rtsp_full_url);
 		if (vcodec == JANUS_VIDEOCODEC_VP8)
@@ -6927,15 +6927,11 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 		break;
 	case MEDIA_AUDIO_MIXER:
 		gstr = &room->gst_thread_parameters[MEDIA_AUDIO_MIXER].gstr;
-		if(dynamic_url_status)
-		{
-			g_snprintf(dynamic_rtsp_url_base, JANUS_RTP_FORWARD_STRING_SIZE, "rtsp://%s:%s@%s:1935/ClientVideo/", room->sgwUsername, room->sgwPassword, room->sgwURL);
-		}
 
 		IS_PARAM_IN_LIMITS(g_snprintf(log_string, MAX_STRING_LEN, "AUDIO MIXER %s", room->room_id_str),
 						   "log_string", 0, MAX_STRING_LEN);
 
-		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sAUDIO_%s", dynamic_url_status ? dynamic_rtsp_url_base : static_rtsp_url_base, room->room_id_str),
+		IS_PARAM_IN_LIMITS(g_snprintf(rtsp_full_url, JANUS_RTP_FORWARD_STRING_SIZE, "%sAUDIO_%s", rtsp_base_url, room->room_id_str),
 						   "rtsp_full_url", 0, JANUS_RTP_FORWARD_STRING_SIZE);
 
 		if (JANUS_AUDIOCODEC_OPUS == acodec)
