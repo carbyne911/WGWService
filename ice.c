@@ -2873,10 +2873,7 @@ static void janus_ice_cb_nice_recv(NiceAgent *agent, guint stream_id, guint comp
 					component->nack_sent_recent_cnt = 0;
 					component->nack_sent_log_ts = now;
 				}
-				if(janus_mutex_trylock(&component->mutex) == TRUE)
-				{
-					janus_mutex_unlock(&component->mutex);
-				}
+				janus_mutex_unlock(&component->mutex);
 				g_slist_free(nacks);
 				nacks = NULL;
 			}
