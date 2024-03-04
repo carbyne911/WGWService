@@ -6933,7 +6933,7 @@ static gboolean janus_gst_create_pipeline(forward_media_type media_type,
 			IS_PARAM_IN_LIMITS(g_snprintf(launch_string, MAX_STRING_LEN,
 										  "udpsrc address=%s port=0 name=%s "
 										  " caps=\"application/x-rtp,media=video,encoding-name=VP9\" !"
-										  " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtpvp9depay name=rtpvp8depayVideo ! queue name=queueVideo ! "
+										  " rtpjitterbuffer latency=%"PRIu32" name=rtpjitterbufferVideo do-lost=true ! rtpvp9depay wait-for-keyframe=true name=rtpvp8depayVideo ! queue name=queueVideo ! "
 										  " rtspclientsink name=rtspClientSinkVideo  protocols=GST_RTSP_LOWER_TRANS_TCP tcp-timeout=%d location=\"%s\" latency=0",
 										  address_to_use,UDPSRC_1_ELEMENT_NAME, jitter_buffer_ms, GST_FAIL_AFTER_TCP_TIMEOUT_MICROSEC, rtsp_full_url),
 							   "launch_string", 0, MAX_STRING_LEN);
