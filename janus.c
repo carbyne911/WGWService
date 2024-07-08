@@ -3555,23 +3555,25 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 
 	//checking if cert is ok
 	FILE *certStatusFile = NULL;
-    char * certStatusLine = NULL;
-    size_t certStatuslen = 0;
+	char * certStatusLine = NULL;
+	size_t certStatuslen = 0;
 	int certStatusStatus = TRUE;
 	certStatusFile = fopen(CERT_STATUS, "r");
 	if (certStatusFile == NULL)
 	{
 			JANUS_LOG(LOG_ERR,"Failed opening cert status file\n");
-    		certStatusStatus = FALSE;
+			certStatusStatus = FALSE;
 	}
 	else
 	{
-		if((getline(&certStatusLine, &certStatuslen, certStatusFile)) != -1) {
-		    if(strstr(certStatusLine,"true") == NULL){
+		if((getline(&certStatusLine, &certStatuslen, certStatusFile)) != -1) 
+		{
+			if(strstr(certStatusLine,"true") == NULL)
+			{
 				JANUS_LOG(LOG_ERR,"Cert will expire or already expired \n");
 				certStatusStatus = FALSE;
-    	    }
-    	}
+			}
+		}
 		else
 		{
 			JANUS_LOG(LOG_ERR,"no line was found in cert status file\n");
@@ -3593,7 +3595,7 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 	{
 		return FALSE;
 	}
-  	return TRUE;
+	return TRUE;
 }
 
 /* CARBYNE-SHC end */
