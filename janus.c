@@ -3561,8 +3561,8 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 	certStatusFile = fopen(CERT_STATUS, "r");
 	if (certStatusFile == NULL)
 	{
-			JANUS_LOG(LOG_ERR,"Failed opening cert status file\n");
-			certStatusStatus = FALSE;
+		JANUS_LOG(LOG_ERR,"Failed opening cert status file\n");
+		certStatusStatus = FALSE;
 	}
 	else
 	{
