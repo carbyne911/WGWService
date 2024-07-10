@@ -3555,47 +3555,47 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 
 	//checking if cert is ok
 	FILE *certStatusFile = NULL;
-	char * certStatusLine = NULL;
+	char *certStatusLine = NULL;
 	size_t certStatuslen = 0;
 	int certStatusStatus = TRUE;
 	certStatusFile = fopen(CERT_STATUS, "r");
 	if (certStatusFile == NULL)
 	{
-		JANUS_LOG(LOG_ERR,"Failed opening cert status file\n");
-		certStatusStatus = FALSE;
+	    JANUS_LOG(LOG_ERR,"Failed opening cert status file\n");
+        certStatusStatus = FALSE;
 	}
 	else
 	{
-		if((getline(&certStatusLine, &certStatuslen, certStatusFile)) != -1) 
-		{
-			if(strstr(certStatusLine,"true") == NULL)
-			{
-				JANUS_LOG(LOG_ERR,"Cert will expire or already expired \n");
-				certStatusStatus = FALSE;
-			}
-		}
-		else
-		{
-			JANUS_LOG(LOG_ERR,"no line was found in cert status file\n");
-			certStatusStatus = FALSE;
-		}
-	}
-	// free memeory
-	if (certStatusFile != NULL) 
-	{
-		fclose(certStatusFile);
-	}
-	if (certStatusLine != NULL)
-	{ 
-		free(certStatusLine);
-	}
+        if((getline(&certStatusLine, &certStatuslen, certStatusFile)) != -1) 
+        {
+            if(strstr(certStatusLine,"true") == NULL)
+            {
+                JANUS_LOG(LOG_ERR,"Cert will expire or already expired \n");
+                certStatusStatus = FALSE;
+            }
+        }
+        else
+        {
+            JANUS_LOG(LOG_ERR,"no line was found in cert status file\n");
+            certStatusStatus = FALSE;
+        }
+    }
+    // free memeory
+    if(certStatusFile != NULL) 
+    {
+        fclose(certStatusFile);
+    }
+    if(certStatusLine != NULL)
+    { 
+        free(certStatusLine);
+    }
 
 	// check status at the end
-	if (certStatusStatus != TRUE) 
-	{
-		return FALSE;
-	}
-	return TRUE;
+    if(certStatusStatus != TRUE) 
+    {
+        return certStatusStatus;
+    }
+    return TRUE;
 }
 
 /* CARBYNE-SHC end */
