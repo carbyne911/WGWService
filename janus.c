@@ -3553,19 +3553,19 @@ gboolean carbyne_janus_transport_is_sanityhealthcheck_resources_available(janus_
 	}
 
 
-	//checking if cert is ok
-	FILE *certStatusFile = NULL;
-	char *certStatusLine = NULL;
-	size_t certStatuslen = 0;
-	int certStatusStatus = TRUE;
-	certStatusFile = fopen(CERT_STATUS, "r");
-	if (certStatusFile == NULL)
-	{
-	    JANUS_LOG(LOG_ERR,"Failed opening cert status file\n");
+    //checking if cert is ok
+    FILE *certStatusFile = NULL;
+    char *certStatusLine = NULL;
+    size_t certStatuslen = 0;
+    int certStatusStatus = TRUE;
+    certStatusFile = fopen(CERT_STATUS, "r");
+    if (certStatusFile == NULL)
+    {
+        JANUS_LOG(LOG_ERR,"Failed opening cert status file\n");
         certStatusStatus = FALSE;
-	}
-	else
-	{
+    }
+    else
+    {
         if((getline(&certStatusLine, &certStatuslen, certStatusFile)) != -1) 
         {
             if(strstr(certStatusLine,"true") == NULL)
