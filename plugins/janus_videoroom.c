@@ -6697,28 +6697,28 @@ static gboolean busCall(GstBus *bus, GstMessage *bus_msg, GMainLoop *loop)
 			gst_message_parse_state_changed(bus_msg, &oldState, &newState, &pending);
 			switch (newState)
 			{
-			case GST_STATE_VOID_PENDING:
-				JANUS_LOG(LOG_VERB, "CARBYNE::GST new state %d VOID_PENDING\n", newState);
-				break;
-			case GST_STATE_NULL:
-				JANUS_LOG(LOG_VERB, "CARBYNE::GST new state %d NULL\n", newState);
-				break;
-			case GST_STATE_READY:
-				JANUS_LOG(LOG_VERB, "CARBYNE::GST new state %d READY\n", newState);
-				break;
-			case GST_STATE_PAUSED:
-				JANUS_LOG(LOG_VERB, "CARBYNE::GST new state %d PAUSED \n", newState);
-				break;
-			case GST_STATE_PLAYING:
-				JANUS_LOG(LOG_VERB, "CARBYNE::GST new state %d PLAYING\n", newState);
-				break;
-			default:
-				break;
+				case GST_STATE_VOID_PENDING:
+					JANUS_LOG(LOG_VERB, "CARBYNE::GST new state %d VOID_PENDING\n", newState);
+					break;
+				case GST_STATE_NULL:
+					JANUS_LOG(LOG_VERB, "CARBYNE::GST new state %d NULL\n", newState);
+					break;
+				case GST_STATE_READY:
+					JANUS_LOG(LOG_VERB, "CARBYNE::GST new state %d READY\n", newState);
+					break;
+				case GST_STATE_PAUSED:
+					JANUS_LOG(LOG_VERB, "CARBYNE::GST new state %d PAUSED \n", newState);
+					break;
+				case GST_STATE_PLAYING:
+					JANUS_LOG(LOG_VERB, "CARBYNE::GST new state %d PLAYING\n", newState);
+					break;
+				default:
+					break;
 			}
 			break;
 		}
 		default:
-			JANUS_LOG(LOG_VERB, "CARBYNE::GST BUS Unexpected message received.\n");
+			JANUS_LOG(LOG_VERB, "CARBYNE::GST BUS Unexpected message received: %s\n", GST_MESSAGE_TYPE_NAME(bus_msg));
 			break;
 		}
 	}
