@@ -7045,6 +7045,8 @@ CLEANUP:
 
 	if (NULL != gstr->pipeline && GST_OBJECT_REFCOUNT_VALUE(gstr->pipeline) > 0)
 	{
+		JANUS_LOG(LOG_INFO, "---------------TRY set pipeline to NULL state  THREAD  -------%s\n", log_string);
+		gst_element_set_state(gstr->pipeline, GST_STATE_NULL);
 		JANUS_LOG(LOG_INFO, "---------------TRY unref pipeline  THREAD  -------%s\n", log_string);
 		gst_object_unref(gstr->pipeline);
 		gstr->pipeline = NULL;
@@ -7058,6 +7060,20 @@ CLEANUP:
 	}
 
 	g_atomic_int_set(&gstr->gst_started_flag, 0);
+
+	// Check if the gstreamer thread is still running
+	if (g_atomic_int_get(&gstr->gst_defined_flag))
+	{
+		JANUS_LOG(LOG_INFO, "GStreamer thread is still running, waiting for it to stop...\n");
+		g_mutex_lock(&gstr->mutex);
+		gint64 end_time = g_get_monotonic_time() + (TIME_FOR_WAIT_FOR_PIPELINE_SEC)*G_TIME_SPAN_SECOND;
+		if (!g_cond_wait_until(&gstr->cond, &gstr->mutex, end_time))
+		{
+			// timeout has passed.
+			JANUS_LOG(LOG_ERR, "Timeout while waiting for GStreamer thread to stop\n");
+		}
+		g_mutex_unlock(&gstr->mutex);
+	}
 
 	return FALSE;
 }
