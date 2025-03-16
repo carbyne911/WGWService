@@ -1758,6 +1758,18 @@ static GMainContext *rtcpfwd_ctx = NULL;
 static GMainLoop *rtcpfwd_loop = NULL;
 static GThread *rtcpfwd_thread = NULL;
 static void *janus_videoroom_rtp_forwarder_rtcp_thread(void *data);
+static void *janus_videoroom_thread_cleaner_add(void *data);
+static void *janus_video_room_thread_cleaner_remove(void *data);
+static void *janus_videoroom_thread_cleaner_cleanup();
+
+typedef struct room_to_gstreamer
+{
+	guint64 room_id; /* Key: Room ID */
+	GThread *gstreamer_thread; /* Value: GStreamer thread to destroy */
+	int status; /* Value: Status of the room */
+} room_to_gstreamer;
+
+static GHashTable *room_to_gstreamer_map = NULL;
 
 typedef struct janus_videoroom_publisher
 {
@@ -4056,6 +4068,8 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		g_hash_table_insert(rooms,
 							string_ids ? (gpointer)g_strdup(videoroom->room_id_str) : (gpointer)janus_uint64_dup(videoroom->room_id),
 							videoroom);
+
+
 		/* Show updated rooms list */
 		GHashTableIter iter;
 		gpointer value;
@@ -4418,6 +4432,7 @@ static json_t *janus_videoroom_process_synchronous_request(janus_videoroom_sessi
 		json_object_set_new(response, "videoroom", json_string("destroyed"));
 		json_object_set_new(response, "room", string_ids ? json_string(room_id_str) : json_integer(room_id));
 		json_object_set_new(response, "permanent", save ? json_true() : json_false());
+		janus_videoroom_thread_cleaner_cleanup();
 		goto prepare_response;
 	}
 	else if (!strcasecmp(request_text, "list"))
@@ -5921,7 +5936,7 @@ gboolean forward_media(janus_videoroom_session *session, publisher_media_type me
 			JANUS_LOG(LOG_INFO, "CARBYNE:::: Forwarder created  video_rtp_forward_stream_id: %" SCNu64 "\n", participant->video_rtp_forward_stream_id);
 			// launch VIDEO thread
 			launch_gst_thread(MEDIA_VIDEO, (void *)participant->room);
-
+			
 			// request new VIDEO Intra frame
 			if (participant->video_rtp_forward_stream_id > 0)
 			{
@@ -7104,6 +7119,7 @@ static void launch_gst_thread(forward_media_type media_type, janus_videoroom *ro
 	JANUS_LOG(LOG_INFO, "---------------BEFORE START GST THREAD ---thread_name:%s\n", thread_name);
 
 	GError *error = NULL;
+	janus_videoroom_thread_cleaner_add(&room->room_id_str, &room->gst_thread_parameters[media_type]);
 	g_thread_try_new(thread_name, &janus_gst_thread_runner, &room->gst_thread_parameters[media_type], &error);
 	if (error != NULL)
 	{
@@ -10785,3 +10801,55 @@ fail:
 	return FALSE;
 }
 /*CARBYNE-AUT end*/
+
+/*CARBYNE-THREAD-CLEANER start*/
+static void janus_videoroom_thread_cleaner_add(gchar room_id, janus_gst_thread_parameters *gstreamer_thread) {
+    // Add entry to room_to_gstreamer_map
+    room_to_gstreamer *entry = g_malloc0(sizeof(room_to_gstreamer));
+    entry->room_id = room_id;
+    entry->gstreamer_thread = NULL; // Initialize with NULL or the actual thread if already created
+    entry->status = 1; // Room is open
+    g_hash_table_insert(room_to_gstreamer_map, GUINT_TO_POINTER(room_id), entry);
+    return videoroom;
+}
+
+static void janus_video_room_thread_cleaner_remove(guint64 room_id) {
+	// Remove entry from room_to_gstreamer_map
+	room_to_gstreamer *entry = g_hash_table_lookup(room_to_gstreamer_map, GUINT_TO_POINTER(room_id));
+	if (entry != NULL) {
+		g_hash_table_remove(room_to_gstreamer_map, GUINT_TO_POINTER(room_id));
+		g_free(entry);
+	}
+	return videoroom;
+}
+
+static void janus_videoroom_thread_cleaner_cleanup() {
+	// Cleanup room_to_gstreamer_map
+	GHashTableIter iter;
+	gpointer key, value;
+	g_hash_table_iter_init(&iter, room_to_gstreamer_map);
+
+	while (g_hash_table_iter_next(&iter, &key, &value)) {
+		room_to_gstreamer *entry = (room_to_gstreamer *)value;
+
+		// Check if the room still exists
+		if (!g_hash_table_contains(rooms, GUINT_TO_POINTER(entry->room_id))) {
+			// Room does not exist, check the status
+			if (entry->status == 1) {
+				// Room was open, check if gstreamer thread is still alive
+				if (entry->gstreamer_thread != NULL && g_thread_try_join(entry->gstreamer_thread, NULL)) {
+					JANUS_LOG(LOG_INFO, "Killing gstreamer thread for room ID %" G_GUINT64_FORMAT "\n", entry->room_id);
+					g_thread_unref(entry->gstreamer_thread);
+					entry->gstreamer_thread = NULL;
+				}
+				// Update the status to indicate the room is closed
+				entry->status = 0;
+			}
+
+			// Remove the entry from the map
+			g_hash_table_iter_remove(&iter);
+			g_free(entry);
+		}
+	}
+}
+/*CARBYNE-THREAD-CLEANER end*/
