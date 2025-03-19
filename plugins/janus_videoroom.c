@@ -1758,8 +1758,8 @@ static GMainContext *rtcpfwd_ctx = NULL;
 static GMainLoop *rtcpfwd_loop = NULL;
 static GThread *rtcpfwd_thread = NULL;
 static void *janus_videoroom_rtp_forwarder_rtcp_thread(void *data);
-static void *janus_videoroom_thread_cleaner_add(void *data);
-static void *janus_video_room_thread_cleaner_remove(void *data);
+static void *janus_videoroom_thread_cleaner_add(gchar room_id, janus_gst_thread_parameters *gstreamer_thread);
+static void *janus_video_room_thread_cleaner_remove(gchar room_id);
 static void *janus_videoroom_thread_cleaner_cleanup();
 
 typedef struct room_to_gstreamer
@@ -10803,41 +10803,69 @@ fail:
 /*CARBYNE-AUT end*/
 
 /*CARBYNE-THREAD-CLEANER start*/
-static void janus_videoroom_thread_cleaner_add(gchar room_id, janus_gst_thread_parameters *gstreamer_thread) {
+static void *janus_videoroom_thread_cleaner_add(gchar room_id, janus_gst_thread_parameters *gstreamer_thread) {
+	// init map if null
+	if (room_to_gstreamer_map == NULL) {
+		room_to_gstreamer_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+	}
+
+
+
     // Add entry to room_to_gstreamer_map
     room_to_gstreamer *entry = g_malloc0(sizeof(room_to_gstreamer));
     entry->room_id = room_id;
     entry->gstreamer_thread = NULL; // Initialize with NULL or the actual thread if already created
     entry->status = 1; // Room is open
-    g_hash_table_insert(room_to_gstreamer_map, GUINT_TO_POINTER(room_id), entry);
-    return videoroom;
+	JANUS_LOG(LOG_INFO, "check if entry: %p exist\n", entry);
+
+	// Check if room_id already exists in the map
+	if (g_hash_table_contains(room_to_gstreamer_map, room_id)) {
+		JANUS_LOG(LOG_WARN, "Room ID %s already exists in room_to_gstreamer_map. Skipping insertion.\n", room_id);
+		g_free(entry);
+		return FALSE;
+	}
+	JANUS_LOG(LOG_INFO, "Adding entry: %p\n", entry);
+
+	// Attempt to insert the entry into the map
+	if (!g_hash_table_insert(room_to_gstreamer_map, g_strdup(room_id), entry)) {
+		JANUS_LOG(LOG_ERR, "Failed to insert room ID %s into room_to_gstreamer_map.\n", room_id);
+		g_free(entry);
+		return FALSE;
+	}
+
+	JANUS_LOG(LOG_INFO, "Added room ID %" G_GUINT64_FORMAT " to room_to_gstreamer_map. Current map size: %u\n", room_id, g_hash_table_size(room_to_gstreamer_map));
+	return TRUE;
 }
 
-static void janus_video_room_thread_cleaner_remove(guint64 room_id) {
+static void *janus_video_room_thread_cleaner_remove(gchar room_id) {
 	// Remove entry from room_to_gstreamer_map
 	room_to_gstreamer *entry = g_hash_table_lookup(room_to_gstreamer_map, GUINT_TO_POINTER(room_id));
 	if (entry != NULL) {
 		g_hash_table_remove(room_to_gstreamer_map, GUINT_TO_POINTER(room_id));
 		g_free(entry);
 	}
-	return videoroom;
+	return TRUE;
 }
 
-static void janus_videoroom_thread_cleaner_cleanup() {
+static void *janus_videoroom_thread_cleaner_cleanup() {
 	// Cleanup room_to_gstreamer_map
 	GHashTableIter iter;
 	gpointer key, value;
 	g_hash_table_iter_init(&iter, room_to_gstreamer_map);
-
+	JANUS_LOG(LOG_INFO, "Cleaning up room_to_gstreamer_map. Current map size: %u\n", g_hash_table_size(room_to_gstreamer_map));
 	while (g_hash_table_iter_next(&iter, &key, &value)) {
 		room_to_gstreamer *entry = (room_to_gstreamer *)value;
-
+		if (entry != NULL) {
+			g_hash_table_iter_remove(&iter);
+			g_free(entry);
+		}
+		JANUS_LOG(LOG_INFO, "Removing entry: %p\n", entry);
 		// Check if the room still exists
 		if (!g_hash_table_contains(rooms, GUINT_TO_POINTER(entry->room_id))) {
 			// Room does not exist, check the status
 			if (entry->status == 1) {
 				// Room was open, check if gstreamer thread is still alive
-				if (entry->gstreamer_thread != NULL && g_thread_try_join(entry->gstreamer_thread, NULL)) {
+				if (entry->gstreamer_thread != NULL) {
 					JANUS_LOG(LOG_INFO, "Killing gstreamer thread for room ID %" G_GUINT64_FORMAT "\n", entry->room_id);
 					g_thread_unref(entry->gstreamer_thread);
 					entry->gstreamer_thread = NULL;
